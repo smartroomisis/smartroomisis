@@ -54,7 +54,7 @@ export function DoorControl({ accessCode }: DoorControlProps) {
         {state === "loading" && (
           <>
             <Loader2 className="w-7 h-7 animate-spin" />
-            <span>Autenticando...</span>
+            <span>Processando...</span>
           </>
         )}
         {state === "success" && (
