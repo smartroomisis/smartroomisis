@@ -1,4 +1,5 @@
 import { AdminMetrics } from "@/components/AdminMetrics";
+import { AdminCharts } from "@/components/AdminCharts";
 import { AccessLogs } from "@/components/AccessLogs";
 import { DeviceStatus } from "@/components/DeviceStatus";
 import { Zap } from "lucide-react";
@@ -23,6 +24,9 @@ export default function Admin() {
 
         {/* Metrics */}
         <AdminMetrics />
+
+        {/* Charts */}
+        <AdminCharts />
 
         {/* Logs and Devices */}
         <div className="grid gap-6 md:grid-cols-2 mt-6">

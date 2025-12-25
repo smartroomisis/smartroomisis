@@ -7,8 +7,9 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
 export function RoomControls() {
-  const [lightIntensity, setLightIntensity] = useState([70]);
-  const [temperature, setTemperature] = useState(22);
+  // Internal state ready for Airtable sync (numeric values for 'Status da Sala')
+  const [lightIntensity, setLightIntensity] = useState<number[]>([70]); // 0-100
+  const [temperature, setTemperature] = useState<number>(22); // 16-30°C
   const [meetingMode, setMeetingMode] = useState(false);
 
   const handleMeetingMode = () => {
