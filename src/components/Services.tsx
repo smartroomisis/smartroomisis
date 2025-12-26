@@ -3,11 +3,16 @@ import { GlassCard } from "@/components/GlassCard";
 import { Button } from "@/components/ui/button";
 import { Coffee, Sparkles, Loader2, CheckCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { requestCoffee, requestCleaning } from "@/lib/api";
+import { requestCoffee, requestCleaning, ERROR_MESSAGES } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 type ServiceState = "idle" | "loading" | "success";
 
-export function Services() {
+interface ServicesProps {
+  disabled?: boolean;
+}
+
+export function Services({ disabled = false }: ServicesProps) {
   const [coffeeState, setCoffeeState] = useState<ServiceState>("idle");
   const [cleaningState, setCleaningState] = useState<ServiceState>("idle");
 
@@ -15,6 +20,8 @@ export function Services() {
     service: "coffee" | "cleaning",
     setState: (s: ServiceState) => void
   ) => {
+    if (disabled) return;
+    
     setState("loading");
     
     try {
@@ -34,9 +41,10 @@ export function Services() {
       });
     } catch (error) {
       setState("idle");
+      const message = error instanceof Error ? error.message : ERROR_MESSAGES.CONNECTION;
       toast({
         title: "Erro de Conexão",
-        description: "Erro de conexão com a sala. Verifique sua internet ou contate o suporte.",
+        description: message,
         variant: "destructive",
       });
       return;
@@ -59,7 +67,7 @@ export function Services() {
         variant={state === "success" ? "success" : "glass"}
         className="flex-1 h-14"
         onClick={() => handleService(service, setState)}
-        disabled={state === "loading"}
+        disabled={state === "loading" || disabled}
       >
         {state === "idle" && (
           <>
@@ -84,10 +92,11 @@ export function Services() {
   };
 
   return (
-    <GlassCard className="space-y-4">
+    <GlassCard className={cn("space-y-4", disabled && "opacity-50")}>
       <h3 className="text-lg font-semibold flex items-center gap-2">
         <Coffee className="w-5 h-5 text-primary" />
         Serviços
+        {disabled && <span className="text-xs text-muted-foreground">(desabilitado)</span>}
       </h3>
 
       <div className="flex gap-3">

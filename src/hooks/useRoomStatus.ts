@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { fetchRoomStatus, RoomStatus } from "@/lib/api";
+import { fetchRoomStatus, RoomStatus, ERROR_MESSAGES } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 
 const POLLING_INTERVAL = 30000; // 30 seconds
@@ -9,31 +9,42 @@ export function useRoomStatus() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchStatus = useCallback(async () => {
+  const fetchStatus = useCallback(async (showError = false) => {
     try {
       const data = await fetchRoomStatus();
       setStatus(data);
       setError(null);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Erro desconhecido";
+      const message = err instanceof Error ? err.message : ERROR_MESSAGES.CONNECTION;
       setError(message);
-      toast({
-        title: "Erro de Conexão",
-        description: "Erro de conexão com a sala. Verifique sua internet ou contate o suporte.",
-        variant: "destructive",
-      });
+      if (showError) {
+        toast({
+          title: "Erro de Conexão",
+          description: message,
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchStatus();
+    fetchStatus(false); // Don't show error on initial load
 
-    const interval = setInterval(fetchStatus, POLLING_INTERVAL);
+    const interval = setInterval(() => fetchStatus(false), POLLING_INTERVAL);
 
     return () => clearInterval(interval);
   }, [fetchStatus]);
 
-  return { status, isLoading, error, refetch: fetchStatus };
+  // Derived state: controls should be enabled only when room is occupied
+  const controlsEnabled = status?.isOccupied ?? false;
+
+  return { 
+    status, 
+    isLoading, 
+    error, 
+    refetch: () => fetchStatus(true),
+    controlsEnabled 
+  };
 }
