@@ -1,26 +1,94 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { GlassCard } from "@/components/GlassCard";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Sun, Thermometer, Minus, Plus, Sparkles } from "lucide-react";
+import { Sun, Thermometer, Minus, Plus, Sparkles, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { controlLights, controlHVAC, activateMeetingMode } from "@/lib/api";
+
+// Debounce timer reference
+let lightsDebounceTimer: NodeJS.Timeout | null = null;
+let hvacDebounceTimer: NodeJS.Timeout | null = null;
 
 export function RoomControls() {
-  // Internal state ready for Airtable sync (numeric values for 'Status da Sala')
-  const [lightIntensity, setLightIntensity] = useState<number[]>([70]); // 0-100
-  const [temperature, setTemperature] = useState<number>(22); // 16-30°C
+  const [lightIntensity, setLightIntensity] = useState<number[]>([70]);
+  const [temperature, setTemperature] = useState<number>(22);
   const [meetingMode, setMeetingMode] = useState(false);
+  const [isLightsLoading, setIsLightsLoading] = useState(false);
+  const [isHvacLoading, setIsHvacLoading] = useState(false);
+  const [isMeetingLoading, setIsMeetingLoading] = useState(false);
 
-  const handleMeetingMode = () => {
-    setMeetingMode(true);
-    setLightIntensity([50]);
-    setTemperature(21);
-    toast({
-      title: "Modo Reunião Ativado",
-      description: "Iluminação e temperatura ajustadas automaticamente.",
-    });
-    setTimeout(() => setMeetingMode(false), 3000);
+  // Debounced lights control
+  const handleLightsChange = useCallback((value: number[]) => {
+    setLightIntensity(value);
+    
+    if (lightsDebounceTimer) {
+      clearTimeout(lightsDebounceTimer);
+    }
+    
+    lightsDebounceTimer = setTimeout(async () => {
+      setIsLightsLoading(true);
+      try {
+        await controlLights(value[0], "manual");
+      } catch (error) {
+        toast({
+          title: "Erro de Conexão",
+          description: "Erro de conexão com a sala. Verifique sua internet ou contate o suporte.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLightsLoading(false);
+      }
+    }, 500);
+  }, []);
+
+  // Debounced HVAC control
+  const handleTemperatureChange = useCallback(async (newTemp: number) => {
+    setTemperature(newTemp);
+    
+    if (hvacDebounceTimer) {
+      clearTimeout(hvacDebounceTimer);
+    }
+    
+    hvacDebounceTimer = setTimeout(async () => {
+      setIsHvacLoading(true);
+      try {
+        await controlHVAC(newTemp, "on");
+      } catch (error) {
+        toast({
+          title: "Erro de Conexão",
+          description: "Erro de conexão com a sala. Verifique sua internet ou contate o suporte.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsHvacLoading(false);
+      }
+    }, 500);
+  }, []);
+
+  const handleMeetingMode = async () => {
+    setIsMeetingLoading(true);
+    
+    try {
+      await activateMeetingMode();
+      setMeetingMode(true);
+      setLightIntensity([50]);
+      setTemperature(21);
+      toast({
+        title: "Modo Reunião Ativado",
+        description: "Iluminação e temperatura ajustadas automaticamente.",
+      });
+      setTimeout(() => setMeetingMode(false), 3000);
+    } catch (error) {
+      toast({
+        title: "Erro de Conexão",
+        description: "Erro de conexão com a sala. Verifique sua internet ou contate o suporte.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsMeetingLoading(false);
+    }
   };
 
   return (
@@ -36,12 +104,13 @@ export function RoomControls() {
           <div className="flex items-center gap-2">
             <Sun className="w-4 h-4 text-muted-foreground" />
             <span className="text-sm text-muted-foreground">Iluminação</span>
+            {isLightsLoading && <Loader2 className="w-3 h-3 animate-spin text-primary" />}
           </div>
           <span className="text-sm font-medium text-primary">{lightIntensity}%</span>
         </div>
         <Slider
           value={lightIntensity}
-          onValueChange={setLightIntensity}
+          onValueChange={handleLightsChange}
           max={100}
           step={5}
           className="w-full"
@@ -54,13 +123,15 @@ export function RoomControls() {
           <div className="flex items-center gap-2">
             <Thermometer className="w-4 h-4 text-muted-foreground" />
             <span className="text-sm text-muted-foreground">Ar-Condicionado</span>
+            {isHvacLoading && <Loader2 className="w-3 h-3 animate-spin text-primary" />}
           </div>
         </div>
         <div className="flex items-center justify-center gap-4">
           <Button
             variant="glass"
             size="icon"
-            onClick={() => setTemperature((t) => Math.max(16, t - 1))}
+            onClick={() => handleTemperatureChange(Math.max(16, temperature - 1))}
+            disabled={isHvacLoading}
           >
             <Minus className="w-4 h-4" />
           </Button>
@@ -72,7 +143,8 @@ export function RoomControls() {
           <Button
             variant="glass"
             size="icon"
-            onClick={() => setTemperature((t) => Math.min(30, t + 1))}
+            onClick={() => handleTemperatureChange(Math.min(30, temperature + 1))}
+            disabled={isHvacLoading}
           >
             <Plus className="w-4 h-4" />
           </Button>
@@ -84,9 +156,14 @@ export function RoomControls() {
         variant={meetingMode ? "success" : "neon"}
         className={cn("w-full", meetingMode && "animate-pulse")}
         onClick={handleMeetingMode}
+        disabled={isMeetingLoading}
       >
-        <Sparkles className="w-4 h-4" />
-        {meetingMode ? "Modo Reunião Ativo" : "Modo Reunião"}
+        {isMeetingLoading ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : (
+          <Sparkles className="w-4 h-4" />
+        )}
+        {isMeetingLoading ? "Ativando..." : meetingMode ? "Modo Reunião Ativo" : "Modo Reunião"}
       </Button>
     </GlassCard>
   );

@@ -3,6 +3,7 @@ import { GlassCard } from "@/components/GlassCard";
 import { Button } from "@/components/ui/button";
 import { Coffee, Sparkles, Loader2, CheckCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { requestCoffee, requestCleaning } from "@/lib/api";
 
 type ServiceState = "idle" | "loading" | "success";
 
@@ -15,15 +16,32 @@ export function Services() {
     setState: (s: ServiceState) => void
   ) => {
     setState("loading");
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setState("success");
-    toast({
-      title: service === "coffee" ? "Café Solicitado" : "Limpeza Acionada",
-      description:
-        service === "coffee"
-          ? "Seu café chegará em breve!"
-          : "Equipe de limpeza a caminho.",
-    });
+    
+    try {
+      if (service === "coffee") {
+        await requestCoffee();
+      } else {
+        await requestCleaning();
+      }
+      
+      setState("success");
+      toast({
+        title: service === "coffee" ? "Café Solicitado" : "Limpeza Acionada",
+        description:
+          service === "coffee"
+            ? "Seu café chegará em breve!"
+            : "Equipe de limpeza a caminho.",
+      });
+    } catch (error) {
+      setState("idle");
+      toast({
+        title: "Erro de Conexão",
+        description: "Erro de conexão com a sala. Verifique sua internet ou contate o suporte.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setTimeout(() => setState("idle"), 3000);
   };
 

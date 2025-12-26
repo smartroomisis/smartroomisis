@@ -3,19 +3,36 @@ import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/GlassCard";
 import { Fingerprint, Loader2, CheckCircle2, Key } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { unlockDoor } from "@/lib/api";
+import { toast } from "@/hooks/use-toast";
 
 interface DoorControlProps {
   accessCode: string;
+  userId?: string;
 }
 
-export function DoorControl({ accessCode }: DoorControlProps) {
+export function DoorControl({ accessCode, userId = "current_user_id" }: DoorControlProps) {
   const [state, setState] = useState<"idle" | "loading" | "success">("idle");
 
   const handleOpenDoor = async () => {
     setState("loading");
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setState("success");
+    
+    try {
+      await unlockDoor(userId);
+      setState("success");
+      toast({
+        title: "Acesso liberado!",
+        description: "A porta foi desbloqueada com sucesso.",
+      });
+    } catch (error) {
+      setState("idle");
+      toast({
+        title: "Erro de Conexão",
+        description: "Erro de conexão com a sala. Verifique sua internet ou contate o suporte.",
+        variant: "destructive",
+      });
+    }
+    
     setTimeout(() => setState("idle"), 3000);
   };
 
