@@ -1,12 +1,10 @@
+import { supabase } from "@/integrations/supabase/client";
+
 // N8N Webhook Configuration
 export const N8N_WEBHOOK_URL = "https://construens.app.n8n.cloud/webhook-test";
 
 // Authorization Token (easy to change later)
 export const AUTH_TOKEN = "SECRET_TOKEN_SJC";
-
-// Airtable Configuration (to be configured later)
-export const AIRTABLE_API_URL = "";
-export const AIRTABLE_API_KEY = "";
 
 // Room Configuration
 export const ROOM_ID = "smart-room-sjc-01";
@@ -15,8 +13,38 @@ export const ROOM_ID = "smart-room-sjc-01";
 export const ERROR_MESSAGES = {
   CONNECTION: "Erro de conexão com a sala. Verifique sua internet ou contate o suporte.",
   ACCESS_DENIED: "Acesso negado: Nenhuma reserva ativa encontrada para este horário.",
+  OUT_OF_TIME: "Acesso fora do horário permitido.",
   GENERIC: "Ocorreu um erro. Tente novamente.",
 };
+
+// Validate reservation via Airtable before unlocking door
+export interface ReservationValidation {
+  valid: boolean;
+  reservation_id?: string;
+  reservation_name?: string;
+  error?: string;
+}
+
+export async function validateReservation(
+  userId?: string, 
+  userEmail?: string
+): Promise<ReservationValidation> {
+  try {
+    const { data, error } = await supabase.functions.invoke('validate-reservation', {
+      body: { user_id: userId, user_email: userEmail },
+    });
+
+    if (error) {
+      console.error('Reservation validation error:', error);
+      return { valid: false, error: ERROR_MESSAGES.ACCESS_DENIED };
+    }
+
+    return data as ReservationValidation;
+  } catch (err) {
+    console.error('Failed to validate reservation:', err);
+    return { valid: false, error: ERROR_MESSAGES.CONNECTION };
+  }
+}
 
 // Generic API call with error handling and auth header
 async function apiCall<T>(
@@ -80,12 +108,17 @@ async function apiGet<T>(endpoint: string): Promise<T> {
   return JSON.parse(text);
 }
 
-// Door Control API
-export async function unlockDoor(userId: string): Promise<{ success: boolean }> {
+// Door Control API - with Airtable reservation validation
+export async function unlockDoor(
+  userId: string, 
+  userEmail?: string,
+  reservationId?: string
+): Promise<{ success: boolean; reservationId?: string }> {
   return apiCall(`${N8N_WEBHOOK_URL}/sensor-porta-aberta`, {
     action: "unlock",
     room_id: ROOM_ID,
     user_id: userId,
+    reservation_id: reservationId,
   });
 }
 

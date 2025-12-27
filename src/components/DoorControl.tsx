@@ -3,33 +3,55 @@ import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/GlassCard";
 import { Fingerprint, Loader2, CheckCircle2, Key } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { unlockDoor, ERROR_MESSAGES } from "@/lib/api";
+import { unlockDoor, validateReservation, ERROR_MESSAGES } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 
 interface DoorControlProps {
   accessCode: string;
   userId?: string;
+  userEmail?: string;
   disabled?: boolean;
 }
 
-export function DoorControl({ accessCode, userId = "current_user_id", disabled = false }: DoorControlProps) {
-  const [state, setState] = useState<"idle" | "loading" | "success">("idle");
+export function DoorControl({ 
+  accessCode, 
+  userId = "current_user_id", 
+  userEmail,
+  disabled = false 
+}: DoorControlProps) {
+  const [state, setState] = useState<"idle" | "validating" | "unlocking" | "success">("idle");
 
   const handleOpenDoor = async () => {
     if (disabled) return;
     
-    setState("loading");
+    setState("validating");
     
     try {
-      await unlockDoor(userId);
+      // Step 1: Validate reservation in Airtable
+      const validation = await validateReservation(userId, userEmail);
+      
+      if (!validation.valid) {
+        setState("idle");
+        toast({
+          title: "Acesso Negado",
+          description: validation.error || ERROR_MESSAGES.OUT_OF_TIME,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Step 2: Unlock door via n8n with reservation ID
+      setState("unlocking");
+      await unlockDoor(userId, userEmail, validation.reservation_id);
+      
       setState("success");
       toast({
         title: "Acesso liberado!",
-        description: "A porta foi desbloqueada com sucesso.",
+        description: `Reserva: ${validation.reservation_name || 'Confirmada'}`,
       });
       setTimeout(() => setState("idle"), 3000);
     } catch (error) {
-      setState("idle"); // Return to normal state on error
+      setState("idle");
       const message = error instanceof Error ? error.message : ERROR_MESSAGES.ACCESS_DENIED;
       toast({
         title: "Acesso Negado",
@@ -64,7 +86,7 @@ export function DoorControl({ accessCode, userId = "current_user_id", disabled =
           disabled && "cursor-not-allowed"
         )}
         onClick={handleOpenDoor}
-        disabled={state === "loading" || disabled}
+        disabled={state === "validating" || state === "unlocking" || disabled}
       >
         {state === "idle" && (
           <>
@@ -72,10 +94,16 @@ export function DoorControl({ accessCode, userId = "current_user_id", disabled =
             <span>{disabled ? "Sala Livre" : "Abrir Porta"}</span>
           </>
         )}
-        {state === "loading" && (
+        {state === "validating" && (
           <>
             <Loader2 className="w-7 h-7 animate-spin" />
-            <span>Processando...</span>
+            <span>Verificando reserva...</span>
+          </>
+        )}
+        {state === "unlocking" && (
+          <>
+            <Loader2 className="w-7 h-7 animate-spin" />
+            <span>Liberando acesso...</span>
           </>
         )}
         {state === "success" && (
@@ -86,7 +114,7 @@ export function DoorControl({ accessCode, userId = "current_user_id", disabled =
         )}
 
         {/* Shimmer effect during loading */}
-        {state === "loading" && (
+        {(state === "validating" || state === "unlocking") && (
           <div className="absolute inset-0 animate-shimmer" />
         )}
       </Button>
