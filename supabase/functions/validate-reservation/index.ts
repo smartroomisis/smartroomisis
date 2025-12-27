@@ -14,6 +14,8 @@ interface AirtableRecord {
     'Email'?: string;
     'Nome'?: string;
     'user_id'?: string;
+    'Código de Acesso'?: string;
+    'Sala'?: string;
     [key: string]: unknown;
   };
 }
@@ -47,14 +49,10 @@ serve(async (req) => {
       );
     }
 
-    // Table name from user's Airtable URL
+    // Table name from user's Airtable
     const tableName = 'Reservas';
     
-    // Build filter formula to find active reservations for this user
-    // Check if current time is between start and end, and status is active
-    const now = new Date().toISOString();
-    
-    // Airtable API URL with filter
+    // Airtable API URL
     const airtableUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(tableName)}`;
     
     console.log(`Fetching reservations from Airtable: ${airtableUrl}`);
@@ -89,7 +87,7 @@ serve(async (req) => {
       
       // Check status is active or confirmed
       const status = fields['Status']?.toLowerCase();
-      const isActiveStatus = status === 'ativo' || status === 'confirmado' || status === 'active' || status === 'confirmed';
+      const isActiveStatus = status === 'ativo' || status === 'confirmado' || status === 'active' || status === 'confirmed' || status === 'em uso';
       
       if (!isActiveStatus) {
         console.log(`Record ${record.id} skipped - status: ${status}`);
@@ -108,7 +106,7 @@ serve(async (req) => {
       const isWithinTimeRange = currentTime >= startTime && currentTime <= endTime;
       
       if (!isWithinTimeRange) {
-        console.log(`Record ${record.id} skipped - outside time range: ${startTime} - ${endTime}`);
+        console.log(`Record ${record.id} skipped - outside time range: ${startTime.toISOString()} - ${endTime.toISOString()}`);
         return false;
       }
       
@@ -130,16 +128,62 @@ serve(async (req) => {
     });
 
     if (validReservation) {
+      const fields = validReservation.fields;
       return new Response(
         JSON.stringify({ 
           valid: true, 
           reservation_id: validReservation.id,
-          reservation_name: validReservation.fields['Nome'] || 'Reserva',
+          client_name: fields['Nome'] || 'Usuário',
+          access_code: fields['Código de Acesso'] || null,
+          room_name: fields['Sala'] || 'Smart Room SJC',
+          start_time: fields['Início'],
+          end_time: fields['Fim'],
+          status: fields['Status'],
           message: 'Reserva válida encontrada'
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     } else {
+      // Check if user has any upcoming reservation today
+      const upcomingReservation = data.records.find((record) => {
+        const fields = record.fields;
+        const status = fields['Status']?.toLowerCase();
+        const isActiveStatus = status === 'ativo' || status === 'confirmado' || status === 'active' || status === 'confirmed';
+        
+        if (!isActiveStatus) return false;
+        
+        const startTime = fields['Início'] ? new Date(fields['Início']) : null;
+        if (!startTime) return false;
+        
+        // Check if it's today but hasn't started yet
+        const today = new Date();
+        const isToday = startTime.toDateString() === today.toDateString();
+        const isFuture = startTime > currentTime;
+        
+        if (!isToday || !isFuture) return false;
+        
+        const recordEmail = fields['Email']?.toLowerCase();
+        const recordUserId = fields['user_id'];
+        
+        return (user_email && recordEmail === user_email.toLowerCase()) ||
+               (user_id && recordUserId === user_id);
+      });
+
+      if (upcomingReservation) {
+        const startTime = new Date(upcomingReservation.fields['Início']!);
+        return new Response(
+          JSON.stringify({ 
+            valid: false,
+            has_upcoming: true,
+            next_start_time: upcomingReservation.fields['Início'],
+            access_code: upcomingReservation.fields['Código de Acesso'] || null,
+            client_name: upcomingReservation.fields['Nome'] || 'Usuário',
+            error: `Acesso disponível apenas no horário da reserva (${startTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })})`
+          }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       console.log('No valid reservation found for user');
       return new Response(
         JSON.stringify({ 

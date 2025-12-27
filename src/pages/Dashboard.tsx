@@ -43,7 +43,7 @@ export default function Dashboard() {
         <div className="space-y-5">
           <StatusIndicator status={status?.isOccupied ? "occupied" : "available"} />
           <ReservationTimer endTime={endTime} />
-          <DoorControl accessCode="847291" disabled={!controlsEnabled} />
+          <DoorControl disabled={!controlsEnabled} />
           <RoomControls disabled={!controlsEnabled} initialBrightness={status?.currentBrightness} initialTemp={status?.currentTemp} />
           <Services disabled={!controlsEnabled} />
         </div>
