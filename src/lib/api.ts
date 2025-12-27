@@ -21,7 +21,14 @@ export const ERROR_MESSAGES = {
 export interface ReservationValidation {
   valid: boolean;
   reservation_id?: string;
-  reservation_name?: string;
+  client_name?: string;
+  access_code?: string | null;
+  room_name?: string;
+  start_time?: string;
+  end_time?: string;
+  status?: string;
+  has_upcoming?: boolean;
+  next_start_time?: string;
   error?: string;
 }
 
@@ -43,6 +50,28 @@ export async function validateReservation(
   } catch (err) {
     console.error('Failed to validate reservation:', err);
     return { valid: false, error: ERROR_MESSAGES.CONNECTION };
+  }
+}
+
+// Update reservation status in Airtable
+export async function updateReservationStatus(
+  reservationId: string,
+  newStatus: string = "Em uso"
+): Promise<{ success: boolean }> {
+  try {
+    const { data, error } = await supabase.functions.invoke('update-reservation-status', {
+      body: { reservation_id: reservationId, new_status: newStatus },
+    });
+
+    if (error) {
+      console.error('Failed to update reservation status:', error);
+      return { success: false };
+    }
+
+    return { success: data?.success ?? true };
+  } catch (err) {
+    console.error('Error updating reservation status:', err);
+    return { success: false };
   }
 }
 
