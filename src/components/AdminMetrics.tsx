@@ -18,17 +18,24 @@ const metrics = [
     positive: true,
   },
   {
-    title: "Nível de Café",
-    value: "42%",
-    change: "-18%",
+    title: "Cápsulas Consumidas",
+    value: "83",
+    change: "+15%",
     icon: Coffee,
     positive: false,
+  },
+  {
+    title: "Tempo Vacância",
+    value: "24h",
+    change: "-22%",
+    icon: Clock,
+    positive: true,
   },
 ];
 
 export function AdminMetrics() {
   return (
-    <div className="grid gap-4 md:grid-cols-3">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       {metrics.map((metric, index) => (
         <GlassCard
           key={metric.title}

@@ -8,6 +8,7 @@ import { useReservation } from "@/hooks/useReservation";
 import Dashboard from "./pages/Dashboard";
 import Booking from "./pages/Booking";
 import Admin from "./pages/Admin";
+import Staff from "./pages/Staff";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
 
@@ -42,6 +43,7 @@ function AppContent() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/booking" element={<Booking />} />
         <Route path="/admin" element={<Admin />} />
+        <Route path="/staff" element={<Staff />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>

@@ -1,6 +1,8 @@
 import { StatusIndicator } from "@/components/StatusIndicator";
 import { DoorControl } from "@/components/DoorControl";
 import { RoomControls } from "@/components/RoomControls";
+import { CoffeeControl } from "@/components/CoffeeControl";
+import { WaterBanner } from "@/components/WaterBanner";
 import { Services } from "@/components/Services";
 import { ReservationTimer } from "@/components/ReservationTimer";
 import { useRoomStatus } from "@/hooks/useRoomStatus";
@@ -11,7 +13,7 @@ export default function Dashboard() {
   const endTime = new Date(Date.now() + 2 * 60 * 60 * 1000);
   
   // Room status polling
-  const { status, isLoading, controlsEnabled } = useRoomStatus();
+  const { status, isLoading, controlsEnabled, reservationId } = useRoomStatus();
 
   return (
     <div className="min-h-screen pb-24 md:pt-20 md:pb-8">
@@ -19,7 +21,7 @@ export default function Dashboard() {
         {/* Header */}
         <div className="flex items-center gap-3 mb-6 md:hidden">
           <Zap className="w-6 h-6 text-primary" />
-          <h1 className="text-xl font-bold neon-text">Smart Room SJC</h1>
+          <h1 className="text-xl font-bold neon-text">SMART ROOM ISIS</h1>
         </div>
 
         {/* Page Title */}
@@ -45,6 +47,14 @@ export default function Dashboard() {
           <ReservationTimer endTime={endTime} />
           <DoorControl disabled={!controlsEnabled} />
           <RoomControls disabled={!controlsEnabled} initialBrightness={status?.currentBrightness} initialTemp={status?.currentTemp} />
+          
+          {/* Water Banner */}
+          <WaterBanner />
+          
+          {/* Coffee Control */}
+          <CoffeeControl disabled={!controlsEnabled} reservationId={reservationId} />
+          
+          {/* Other Services (Cleaning) */}
           <Services disabled={!controlsEnabled} />
         </div>
       </div>
