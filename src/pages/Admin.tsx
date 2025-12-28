@@ -1,10 +1,20 @@
+import { useState } from "react";
 import { AdminMetrics } from "@/components/AdminMetrics";
 import { AdminCharts } from "@/components/AdminCharts";
 import { AccessLogs } from "@/components/AccessLogs";
 import { DeviceStatus } from "@/components/DeviceStatus";
-import { Zap } from "lucide-react";
+import { FinancialDashboard } from "@/components/FinancialDashboard";
+import { ExpenseForm } from "@/components/ExpenseForm";
+import { ReservationCostList } from "@/components/ReservationCostList";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Zap, LayoutDashboard, DollarSign, Lock } from "lucide-react";
 
 export default function Admin() {
+  const [activeTab, setActiveTab] = useState("overview");
+  
+  // Simple admin check - in production this would use proper auth
+  const isAdmin = true; // Replace with actual auth check
+
   return (
     <div className="min-h-screen pb-24 md:pt-20 md:pb-8">
       <div className="container mx-auto px-4 py-6 max-w-6xl">
@@ -22,17 +32,59 @@ export default function Admin() {
           </p>
         </div>
 
-        {/* Metrics */}
-        <AdminMetrics />
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:inline-grid">
+            <TabsTrigger value="overview" className="flex items-center gap-2">
+              <LayoutDashboard className="w-4 h-4" />
+              Visão Geral
+            </TabsTrigger>
+            <TabsTrigger value="financial" className="flex items-center gap-2">
+              <DollarSign className="w-4 h-4" />
+              Gestão Financeira
+              {!isAdmin && <Lock className="w-3 h-3" />}
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Charts */}
-        <AdminCharts />
+          {/* Overview Tab */}
+          <TabsContent value="overview" className="space-y-6">
+            {/* Metrics */}
+            <AdminMetrics />
 
-        {/* Logs and Devices */}
-        <div className="grid gap-6 md:grid-cols-2 mt-6">
-          <AccessLogs />
-          <DeviceStatus />
-        </div>
+            {/* Charts */}
+            <AdminCharts />
+
+            {/* Logs and Devices */}
+            <div className="grid gap-6 md:grid-cols-2">
+              <AccessLogs />
+              <DeviceStatus />
+            </div>
+          </TabsContent>
+
+          {/* Financial Tab */}
+          <TabsContent value="financial" className="space-y-6">
+            {isAdmin ? (
+              <>
+                {/* Financial Dashboard */}
+                <FinancialDashboard />
+
+                {/* Expense Form and Cost List */}
+                <div className="grid gap-6 md:grid-cols-2">
+                  <ExpenseForm />
+                  <ReservationCostList />
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Lock className="w-12 h-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold">Acesso Restrito</h3>
+                <p className="text-muted-foreground">
+                  Apenas administradores podem visualizar dados financeiros.
+                </p>
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
