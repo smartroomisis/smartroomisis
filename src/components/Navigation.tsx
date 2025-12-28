@@ -1,10 +1,11 @@
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Calendar, Settings, Zap } from "lucide-react";
+import { LayoutDashboard, Calendar, Settings, Zap, ClipboardCheck } from "lucide-react";
 
 const navItems = [
   { path: "/", label: "Dashboard", icon: LayoutDashboard },
   { path: "/booking", label: "Reservar", icon: Calendar },
+  { path: "/staff", label: "Staff", icon: ClipboardCheck },
   { path: "/admin", label: "Admin", icon: Settings },
 ];
 
@@ -20,7 +21,7 @@ export function Navigation() {
           className="hidden md:flex items-center gap-2 text-primary font-semibold"
         >
           <Zap className="w-5 h-5" />
-          <span className="neon-text">Smart Room SJC</span>
+          <span className="neon-text">SMART ROOM ISIS</span>
         </Link>
 
         {/* Navigation Items */}

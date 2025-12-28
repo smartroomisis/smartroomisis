@@ -1,13 +1,15 @@
 import { supabase } from "@/integrations/supabase/client";
 
 // N8N Webhook Configuration
-export const N8N_WEBHOOK_URL = "https://construens.app.n8n.cloud/webhook-test";
+export const N8N_WEBHOOK_URL = "https://construens.app.n8n.cloud/webhook";
+export const N8N_WEBHOOK_TEST_URL = "https://construens.app.n8n.cloud/webhook-test";
 
 // Authorization Token (easy to change later)
 export const AUTH_TOKEN = "SECRET_TOKEN_SJC";
 
 // Room Configuration
-export const ROOM_ID = "smart-room-sjc-01";
+export const ROOM_ID = "smart-room-isis-01";
+export const ROOM_NAME = "SMART ROOM ISIS";
 
 // Error messages
 export const ERROR_MESSAGES = {
@@ -217,17 +219,35 @@ export async function fetchRoomStatus(): Promise<RoomStatus> {
   }
 }
 
-// Services API
-export async function requestCoffee(): Promise<{ success: boolean }> {
-  return apiCall(`${N8N_WEBHOOK_URL}/request-service`, {
+// Services API - Coffee with reservation tracking
+export async function requestCoffee(
+  reservationId?: string,
+  type: "courtesy" | "extra" = "courtesy"
+): Promise<{ success: boolean }> {
+  return apiCall(`${N8N_WEBHOOK_URL}/preparar-cafe`, {
     service: "coffee",
     room_id: ROOM_ID,
+    reservation_id: reservationId,
+    type,
   });
 }
 
 export async function requestCleaning(): Promise<{ success: boolean }> {
-  return apiCall(`${N8N_WEBHOOK_URL}/request-service`, {
+  return apiCall(`${N8N_WEBHOOK_TEST_URL}/request-service`, {
     service: "cleaning",
     room_id: ROOM_ID,
   });
+}
+
+// Staff Audit API
+export interface StaffAuditData {
+  room_id: string;
+  reservation_id: string;
+  coffee_capsules_remaining: number;
+  checklist: Record<string, boolean>;
+  damage_report: string | null;
+}
+
+export async function submitStaffAudit(data: StaffAuditData): Promise<{ success: boolean }> {
+  return apiCall(`${N8N_WEBHOOK_URL}/staff-audit`, data as unknown as Record<string, unknown>);
 }
