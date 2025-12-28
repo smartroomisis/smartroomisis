@@ -251,3 +251,60 @@ export interface StaffAuditData {
 export async function submitStaffAudit(data: StaffAuditData): Promise<{ success: boolean }> {
   return apiCall(`${N8N_WEBHOOK_URL}/staff-audit`, data as unknown as Record<string, unknown>);
 }
+
+// Financial API
+export interface Expense {
+  id?: string;
+  date: string;
+  category: string;
+  amount: number;
+  description: string;
+}
+
+export interface FinancialSummary {
+  totalRevenue: number;
+  totalExpenses: number;
+  coffeeCost: number;
+  netProfit: number;
+  reservationCount: number;
+  expensesByCategory: Record<string, number>;
+}
+
+export async function createExpense(expense: Omit<Expense, 'id'>): Promise<{ success: boolean }> {
+  const { data, error } = await supabase.functions.invoke('manage-expenses', {
+    body: expense,
+  });
+
+  if (error) {
+    console.error('Failed to create expense:', error);
+    throw new Error('Erro ao registrar despesa');
+  }
+
+  return data;
+}
+
+export async function fetchExpenses(): Promise<Expense[]> {
+  const { data, error } = await supabase.functions.invoke('manage-expenses', {
+    body: {},
+  });
+
+  if (error) {
+    console.error('Failed to fetch expenses:', error);
+    return [];
+  }
+
+  return data?.expenses || [];
+}
+
+export async function fetchFinancialSummary(): Promise<FinancialSummary | null> {
+  const { data, error } = await supabase.functions.invoke('manage-expenses', {
+    body: {},
+  });
+
+  if (error) {
+    console.error('Failed to fetch financial summary:', error);
+    return null;
+  }
+
+  return data?.summary || null;
+}
