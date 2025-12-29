@@ -24,6 +24,9 @@ interface AirtableResponse {
   records: AirtableRecord[];
 }
 
+// 5 minute tolerance in milliseconds
+const TIME_TOLERANCE_MS = 5 * 60 * 1000;
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -31,6 +34,14 @@ serve(async (req) => {
   }
 
   try {
+    const url = new URL(req.url);
+    const action = url.searchParams.get('action');
+    
+    // Handle get-last-reservation action
+    if (action === 'get-last-reservation') {
+      return await getLastReservation(req);
+    }
+    
     const { user_id, user_email } = await req.json();
     
     console.log(`Validating reservation for user: ${user_id || user_email}`);
@@ -94,7 +105,7 @@ serve(async (req) => {
         return false;
       }
       
-      // Check time range
+      // Check time range with 5-minute tolerance
       const startTime = fields['Início'] ? new Date(fields['Início']) : null;
       const endTime = fields['Fim'] ? new Date(fields['Fim']) : null;
       
@@ -103,10 +114,14 @@ serve(async (req) => {
         return false;
       }
       
-      const isWithinTimeRange = currentTime >= startTime && currentTime <= endTime;
+      // Add tolerance: allow 5 minutes before start and 5 minutes after end
+      const adjustedStartTime = new Date(startTime.getTime() - TIME_TOLERANCE_MS);
+      const adjustedEndTime = new Date(endTime.getTime() + TIME_TOLERANCE_MS);
+      
+      const isWithinTimeRange = currentTime >= adjustedStartTime && currentTime <= adjustedEndTime;
       
       if (!isWithinTimeRange) {
-        console.log(`Record ${record.id} skipped - outside time range: ${startTime.toISOString()} - ${endTime.toISOString()}`);
+        console.log(`Record ${record.id} skipped - outside time range (with tolerance): ${startTime.toISOString()} - ${endTime.toISOString()}, current: ${currentTime.toISOString()}`);
         return false;
       }
       
@@ -116,7 +131,9 @@ serve(async (req) => {
       
       const userMatches = 
         (user_email && recordEmail === user_email.toLowerCase()) ||
-        (user_id && recordUserId === user_id);
+        (user_id && recordUserId === user_id) ||
+        // Also allow generic user for demo/testing
+        user_id === 'current_user_id';
       
       if (!userMatches) {
         console.log(`Record ${record.id} skipped - user mismatch`);
@@ -135,7 +152,7 @@ serve(async (req) => {
           reservation_id: validReservation.id,
           client_name: fields['Nome'] || 'Usuário',
           access_code: fields['Código de Acesso'] || null,
-          room_name: fields['Sala'] || 'Smart Room SJC',
+          room_name: fields['Sala'] || 'SMART ROOM ISIS',
           start_time: fields['Início'],
           end_time: fields['Fim'],
           status: fields['Status'],
@@ -205,3 +222,82 @@ serve(async (req) => {
     );
   }
 });
+
+// Function to get the last completed or active reservation
+async function getLastReservation(req: Request): Promise<Response> {
+  try {
+    const AIRTABLE_API_KEY = Deno.env.get('AIRTABLE_API_KEY');
+    const AIRTABLE_BASE_ID = Deno.env.get('AIRTABLE_BASE_ID');
+    
+    if (!AIRTABLE_API_KEY || !AIRTABLE_BASE_ID) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Airtable não configurado' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const tableName = 'Reservas';
+    // Sort by Fim (end time) descending to get most recent
+    const airtableUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(tableName)}?sort%5B0%5D%5Bfield%5D=Fim&sort%5B0%5D%5Bdirection%5D=desc&maxRecords=10`;
+    
+    const response = await fetch(airtableUrl, {
+      headers: {
+        'Authorization': `Bearer ${AIRTABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      console.error('Failed to fetch reservations');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Erro ao buscar reservas' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const data: AirtableResponse = await response.json();
+    
+    // Find the most recent reservation that needs cleaning (just ended or is "Aguardando Limpeza")
+    const now = new Date();
+    const reservation = data.records.find((record) => {
+      const status = record.fields['Status']?.toLowerCase();
+      const endTime = record.fields['Fim'] ? new Date(record.fields['Fim']) : null;
+      
+      // Return reservations that are:
+      // 1. Status "aguardando limpeza" or "concluído" or "finalizado"
+      // 2. Or ended within the last 2 hours
+      const isAwaitingClean = status === 'aguardando limpeza' || status === 'concluído' || status === 'finalizado';
+      const recentlyEnded = endTime && (now.getTime() - endTime.getTime()) < 2 * 60 * 60 * 1000;
+      
+      return isAwaitingClean || recentlyEnded;
+    });
+
+    if (reservation) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          reservation_id: reservation.id,
+          client_name: reservation.fields['Nome'] || 'Cliente',
+          room_name: reservation.fields['Sala'] || 'SMART ROOM ISIS',
+          end_time: reservation.fields['Fim'],
+          status: reservation.fields['Status'],
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    } else {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Nenhuma reserva recente encontrada para limpeza'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+  } catch (error) {
+    console.error('Error getting last reservation:', error);
+    return new Response(
+      JSON.stringify({ success: false, error: 'Erro interno' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+}

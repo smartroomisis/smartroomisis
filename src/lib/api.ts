@@ -326,7 +326,7 @@ export interface FinancialSummary {
 
 export async function createExpense(expense: Omit<Expense, 'id'>): Promise<{ success: boolean }> {
   const { data, error } = await supabase.functions.invoke('manage-expenses', {
-    body: expense,
+    body: { ...expense, action: 'create' },
   });
 
   if (error) {
@@ -339,7 +339,7 @@ export async function createExpense(expense: Omit<Expense, 'id'>): Promise<{ suc
 
 export async function fetchExpenses(): Promise<Expense[]> {
   const { data, error } = await supabase.functions.invoke('manage-expenses', {
-    body: {},
+    body: { action: 'list' },
   });
 
   if (error) {
@@ -352,7 +352,7 @@ export async function fetchExpenses(): Promise<Expense[]> {
 
 export async function fetchFinancialSummary(): Promise<FinancialSummary | null> {
   const { data, error } = await supabase.functions.invoke('manage-expenses', {
-    body: {},
+    body: { action: 'summary' },
   });
 
   if (error) {
@@ -361,4 +361,33 @@ export async function fetchFinancialSummary(): Promise<FinancialSummary | null> 
   }
 
   return data?.summary || null;
+}
+
+// Get last reservation for staff cleaning
+export interface LastReservation {
+  success: boolean;
+  reservation_id?: string;
+  client_name?: string;
+  room_name?: string;
+  end_time?: string;
+  status?: string;
+  error?: string;
+}
+
+export async function getLastReservation(): Promise<LastReservation> {
+  try {
+    const { data, error } = await supabase.functions.invoke('validate-reservation?action=get-last-reservation', {
+      method: 'GET',
+    });
+
+    if (error) {
+      console.error('Failed to get last reservation:', error);
+      return { success: false, error: 'Erro ao buscar última reserva' };
+    }
+
+    return data as LastReservation;
+  } catch (err) {
+    console.error('Error getting last reservation:', err);
+    return { success: false, error: 'Erro de conexão' };
+  }
 }

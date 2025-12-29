@@ -34,7 +34,35 @@ serve(async (req) => {
 
   try {
     const url = new URL(req.url)
-    const action = url.searchParams.get('action') || 'list'
+    // Get action from query param OR body
+    let action = url.searchParams.get('action')
+    
+    // Parse body for POST requests
+    let body: Record<string, unknown> = {}
+    if (req.method === 'POST') {
+      try {
+        body = await req.json()
+        // If action not in query params, check body
+        if (!action && body.action) {
+          action = body.action as string
+        }
+      } catch {
+        // Empty body is OK for list/summary actions
+      }
+    }
+    
+    // Default action based on what's provided
+    if (!action) {
+      // If body has expense fields, it's a create action
+      if (body.date && body.category && body.amount !== undefined) {
+        action = 'create'
+      } else if (req.method === 'GET') {
+        action = 'list'
+      } else {
+        // Default to summary for POST without specific fields
+        action = 'summary'
+      }
+    }
 
     console.log(`[manage-expenses] Action: ${action}`)
 
@@ -45,10 +73,16 @@ serve(async (req) => {
 
     const airtableUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_TABLE_NAME)}`
 
-    if (req.method === 'POST' && action === 'create') {
-      // Create new expense
-      const body: ExpenseInput = await req.json()
+    // CREATE expense
+    if (action === 'create' || action === 'ADD_EXPENSE') {
       console.log('[manage-expenses] Creating expense:', body)
+
+      const expenseData: ExpenseInput = {
+        date: body.date as string,
+        category: body.category as string,
+        amount: body.amount as number,
+        description: body.description as string,
+      }
 
       const airtableResponse = await fetch(airtableUrl, {
         method: 'POST',
@@ -59,10 +93,10 @@ serve(async (req) => {
         body: JSON.stringify({
           records: [{
             fields: {
-              Data: body.date,
-              Categoria: body.category,
-              Valor: body.amount,
-              Descricao: body.description,
+              Data: expenseData.date,
+              Categoria: expenseData.category,
+              Valor: expenseData.amount,
+              Descricao: expenseData.description,
             }
           }]
         }),
@@ -83,8 +117,8 @@ serve(async (req) => {
       )
     }
 
-    if (req.method === 'GET' && action === 'list') {
-      // List all expenses
+    // LIST expenses
+    if (action === 'list') {
       console.log('[manage-expenses] Fetching expenses')
 
       const airtableResponse = await fetch(`${airtableUrl}?sort%5B0%5D%5Bfield%5D=Data&sort%5B0%5D%5Bdirection%5D=desc`, {
@@ -116,8 +150,8 @@ serve(async (req) => {
       )
     }
 
-    if (req.method === 'GET' && action === 'summary') {
-      // Get financial summary (expenses + revenue from reservations)
+    // SUMMARY (default for POST without specific data)
+    if (action === 'summary' || !action) {
       console.log('[manage-expenses] Fetching financial summary')
 
       // Fetch expenses
@@ -152,7 +186,7 @@ serve(async (req) => {
         const reservasResult = await reservasResponse.json()
         reservationCount = reservasResult.records.length
         
-        totalRevenue = reservasResult.records.reduce((sum: number, record: any) => {
+        totalRevenue = reservasResult.records.reduce((sum: number, record: { fields: { Valor?: number; valor?: number } }) => {
           return sum + (record.fields.Valor || record.fields.valor || 0)
         }, 0)
 
@@ -187,8 +221,13 @@ serve(async (req) => {
       )
     }
 
+    // Unknown action - return helpful error
+    console.error(`[manage-expenses] Unknown action: ${action}`)
     return new Response(
-      JSON.stringify({ error: 'Invalid action' }),
+      JSON.stringify({ 
+        error: `Action '${action}' not recognized. Valid actions: create, list, summary`,
+        success: false 
+      }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 

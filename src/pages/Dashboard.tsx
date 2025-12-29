@@ -6,8 +6,9 @@ import { WaterBanner } from "@/components/WaterBanner";
 import { Services } from "@/components/Services";
 import { ReservationTimer } from "@/components/ReservationTimer";
 import { ReservationExpiredOverlay } from "@/components/ReservationExpiredOverlay";
+import { GlassCard } from "@/components/GlassCard";
 import { useRoomStatus } from "@/hooks/useRoomStatus";
-import { Zap, Loader2 } from "lucide-react";
+import { Zap, Loader2, AlertCircle, Clock } from "lucide-react";
 
 export default function Dashboard() {
   const { 
@@ -17,6 +18,8 @@ export default function Dashboard() {
     reservationId,
     reservationEndTime,
     isExpired,
+    noActiveReservation,
+    reservationMessage,
     handleReservationExpiry
   } = useRoomStatus();
 
@@ -46,6 +49,8 @@ export default function Dashboard() {
               </span>
             ) : isExpired ? (
               "Reserva encerrada"
+            ) : noActiveReservation ? (
+              "Sem reserva ativa"
             ) : controlsEnabled ? (
               "Controle sua reserva"
             ) : (
@@ -54,14 +59,40 @@ export default function Dashboard() {
           </p>
         </div>
 
+        {/* No Active Reservation Message */}
+        {!isLoading && noActiveReservation && !isExpired && (
+          <GlassCard className="mb-5 border-warning/30 bg-warning/5">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-full bg-warning/10">
+                <AlertCircle className="w-5 h-5 text-warning" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-warning mb-1">Nenhuma reserva ativa</h3>
+                <p className="text-sm text-muted-foreground">
+                  {reservationMessage || "Nenhuma reserva ativa encontrada para este usuário no momento."}
+                </p>
+                {reservationMessage?.includes("Próxima reserva") && (
+                  <div className="mt-2 flex items-center gap-2 text-sm text-primary">
+                    <Clock className="w-4 h-4" />
+                    <span>Aguarde o horário da sua reserva para acessar os controles.</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </GlassCard>
+        )}
+
         {/* Content */}
         <div className="space-y-5">
           <StatusIndicator status={isExpired ? "available" : status?.isOccupied ? "occupied" : "available"} />
           
-          <ReservationTimer 
-            endTime={endTime} 
-            onExpired={handleReservationExpiry}
-          />
+          {/* Only show timer if there's an active reservation */}
+          {!noActiveReservation && !isLoading && (
+            <ReservationTimer 
+              endTime={endTime} 
+              onExpired={handleReservationExpiry}
+            />
+          )}
           
           <DoorControl disabled={!controlsEnabled || isExpired} />
           <RoomControls disabled={!controlsEnabled || isExpired} initialBrightness={status?.currentBrightness} initialTemp={status?.currentTemp} />

@@ -19,6 +19,8 @@ export function useRoomStatus() {
   const [reservationId, setReservationId] = useState<string | undefined>(undefined);
   const [reservationEndTime, setReservationEndTime] = useState<Date | null>(null);
   const [isExpired, setIsExpired] = useState(false);
+  const [noActiveReservation, setNoActiveReservation] = useState(false);
+  const [reservationMessage, setReservationMessage] = useState<string | null>(null);
 
   const fetchStatus = useCallback(async (showError = false) => {
     try {
@@ -30,10 +32,22 @@ export function useRoomStatus() {
       const validation = await validateReservation("current_user_id");
       if (validation.valid && validation.reservation_id) {
         setReservationId(validation.reservation_id);
+        setNoActiveReservation(false);
+        setReservationMessage(null);
         
         // Set end time from reservation
         if (validation.end_time) {
           setReservationEndTime(new Date(validation.end_time));
+        }
+      } else {
+        // No active reservation - set friendly message instead of error
+        setNoActiveReservation(true);
+        setReservationMessage(validation.error || "Nenhuma reserva ativa encontrada para este usuário no momento");
+        
+        // Check if there's an upcoming reservation
+        if (validation.has_upcoming && validation.next_start_time) {
+          const nextTime = new Date(validation.next_start_time);
+          setReservationMessage(`Próxima reserva às ${nextTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`);
         }
       }
     } catch (err) {
@@ -83,7 +97,7 @@ export function useRoomStatus() {
   }, [fetchStatus]);
 
   // Derived state: controls should be enabled only when room is occupied and not expired
-  const controlsEnabled = (status?.isOccupied ?? false) && !isExpired;
+  const controlsEnabled = (status?.isOccupied ?? false) && !isExpired && !noActiveReservation;
 
   return { 
     status, 
@@ -94,6 +108,8 @@ export function useRoomStatus() {
     reservationId,
     reservationEndTime,
     isExpired,
+    noActiveReservation,
+    reservationMessage,
     handleReservationExpiry
   };
 }

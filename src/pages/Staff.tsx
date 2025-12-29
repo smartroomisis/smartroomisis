@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { submitStaffAudit, updateRoomStatus, STAFF_LIST, ROOM_ID } from "@/lib/api";
+import { submitStaffAudit, updateRoomStatus, getLastReservation, STAFF_LIST, ROOM_ID } from "@/lib/api";
 import { PhotoUpload } from "@/components/PhotoUpload";
 import { 
   Zap, 
@@ -21,7 +21,9 @@ import {
   CheckCircle,
   Sparkles,
   Armchair,
-  User
+  User,
+  RefreshCw,
+  AlertCircle
 } from "lucide-react";
 
 interface ChecklistItem {
@@ -54,6 +56,9 @@ const initialOrganizationChecklist: ChecklistItem[] = [
 export default function Staff() {
   const [staffId, setStaffId] = useState("");
   const [reservationId, setReservationId] = useState("");
+  const [clientName, setClientName] = useState("");
+  const [isLoadingReservation, setIsLoadingReservation] = useState(true);
+  const [reservationError, setReservationError] = useState<string | null>(null);
   const [coffeeCapsulesRemaining, setCoffeeCapsulesRemaining] = useState<number>(20);
   const [cleaningChecklist, setCleaningChecklist] = useState<ChecklistItem[]>(initialCleaningChecklist);
   const [organizationChecklist, setOrganizationChecklist] = useState<ChecklistItem[]>(initialOrganizationChecklist);
@@ -63,6 +68,33 @@ export default function Staff() {
   const [isSuccess, setIsSuccess] = useState(false);
 
   const selectedStaff = STAFF_LIST.find(s => s.id === staffId);
+
+  // Auto-fetch last reservation on mount
+  useEffect(() => {
+    fetchLastReservation();
+  }, []);
+
+  const fetchLastReservation = async () => {
+    setIsLoadingReservation(true);
+    setReservationError(null);
+    
+    try {
+      const result = await getLastReservation();
+      
+      if (result.success && result.reservation_id) {
+        setReservationId(result.reservation_id);
+        setClientName(result.client_name || "");
+        setReservationError(null);
+      } else {
+        setReservationError(result.error || "Nenhuma reserva encontrada para limpeza");
+      }
+    } catch (err) {
+      console.error("Error fetching reservation:", err);
+      setReservationError("Erro ao buscar reserva. Tente novamente.");
+    } finally {
+      setIsLoadingReservation(false);
+    }
+  };
 
   const toggleCleaningItem = (id: string) => {
     setCleaningChecklist((prev) =>
@@ -97,7 +129,7 @@ export default function Staff() {
     if (!reservationId.trim()) {
       toast({
         title: "Campo obrigatório",
-        description: "Informe o ID da última reserva.",
+        description: "Nenhuma reserva identificada. Clique em 'Recarregar' para buscar novamente.",
         variant: "destructive",
       });
       return;
@@ -175,11 +207,14 @@ export default function Staff() {
         setIsSuccess(false);
         setStaffId("");
         setReservationId("");
+        setClientName("");
         setCoffeeCapsulesRemaining(20);
         setCleaningChecklist(initialCleaningChecklist);
         setOrganizationChecklist(initialOrganizationChecklist);
         setDamageReport("");
         setPhotos([]);
+        // Fetch next reservation
+        fetchLastReservation();
       }, 3000);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Erro ao enviar dados";
@@ -249,14 +284,50 @@ export default function Staff() {
               </div>
               
               <div>
-                <Label htmlFor="reservation">ID da Última Reserva *</Label>
-                <Input
-                  id="reservation"
-                  value={reservationId}
-                  onChange={(e) => setReservationId(e.target.value)}
-                  placeholder="Ex: rec123abc..."
-                  className="mt-1"
-                />
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="reservation">ID da Última Reserva</Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={fetchLastReservation}
+                    disabled={isLoadingReservation}
+                    className="h-7 text-xs"
+                  >
+                    {isLoadingReservation ? (
+                      <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                    ) : (
+                      <RefreshCw className="w-3 h-3 mr-1" />
+                    )}
+                    Recarregar
+                  </Button>
+                </div>
+                
+                {isLoadingReservation ? (
+                  <div className="mt-1 flex items-center gap-2 p-3 rounded-md bg-muted/50 text-muted-foreground text-sm">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Buscando última reserva...
+                  </div>
+                ) : reservationError ? (
+                  <div className="mt-1 flex items-center gap-2 p-3 rounded-md bg-warning/10 text-warning text-sm border border-warning/20">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    <span>{reservationError}</span>
+                  </div>
+                ) : (
+                  <div className="mt-1 space-y-2">
+                    <Input
+                      id="reservation"
+                      value={reservationId}
+                      disabled
+                      className="bg-muted/50 font-mono text-sm"
+                    />
+                    {clientName && (
+                      <p className="text-xs text-muted-foreground">
+                        Cliente: <span className="font-medium">{clientName}</span>
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </GlassCard>
@@ -376,7 +447,7 @@ export default function Staff() {
             size="lg"
             className="w-full h-14"
             onClick={handleSubmit}
-            disabled={isSubmitting || isSuccess}
+            disabled={isSubmitting || isSuccess || isLoadingReservation}
           >
             {isSubmitting ? (
               <>
