@@ -6,8 +6,9 @@ import { DeviceStatus } from "@/components/DeviceStatus";
 import { FinancialDashboard } from "@/components/FinancialDashboard";
 import { ExpenseForm } from "@/components/ExpenseForm";
 import { ReservationCostList } from "@/components/ReservationCostList";
+import { StaffPayments } from "@/components/StaffPayments";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Zap, LayoutDashboard, DollarSign, Lock } from "lucide-react";
+import { Zap, LayoutDashboard, DollarSign, Lock, Users } from "lucide-react";
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState("overview");
@@ -34,27 +35,29 @@ export default function Admin() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <LayoutDashboard className="w-4 h-4" />
-              Visão Geral
+              <span className="hidden sm:inline">Visão Geral</span>
+              <span className="sm:hidden">Geral</span>
             </TabsTrigger>
             <TabsTrigger value="financial" className="flex items-center gap-2">
               <DollarSign className="w-4 h-4" />
-              Gestão Financeira
+              <span className="hidden sm:inline">Gestão Financeira</span>
+              <span className="sm:hidden">Finanças</span>
               {!isAdmin && <Lock className="w-3 h-3" />}
+            </TabsTrigger>
+            <TabsTrigger value="staff-payments" className="flex items-center gap-2">
+              <Users className="w-4 h-4" />
+              <span className="hidden sm:inline">Pagamentos Staff</span>
+              <span className="sm:hidden">Staff</span>
             </TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
-            {/* Metrics */}
             <AdminMetrics />
-
-            {/* Charts */}
             <AdminCharts />
-
-            {/* Logs and Devices */}
             <div className="grid gap-6 md:grid-cols-2">
               <AccessLogs />
               <DeviceStatus />
@@ -65,10 +68,7 @@ export default function Admin() {
           <TabsContent value="financial" className="space-y-6">
             {isAdmin ? (
               <>
-                {/* Financial Dashboard */}
                 <FinancialDashboard />
-
-                {/* Expense Form and Cost List */}
                 <div className="grid gap-6 md:grid-cols-2">
                   <ExpenseForm />
                   <ReservationCostList />
@@ -80,6 +80,21 @@ export default function Admin() {
                 <h3 className="text-lg font-semibold">Acesso Restrito</h3>
                 <p className="text-muted-foreground">
                   Apenas administradores podem visualizar dados financeiros.
+                </p>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Staff Payments Tab */}
+          <TabsContent value="staff-payments" className="space-y-6">
+            {isAdmin ? (
+              <StaffPayments />
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Lock className="w-12 h-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold">Acesso Restrito</h3>
+                <p className="text-muted-foreground">
+                  Apenas administradores podem gerenciar pagamentos.
                 </p>
               </div>
             )}

@@ -1,5 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
-import { fetchRoomStatus, RoomStatus, ERROR_MESSAGES, validateReservation } from "@/lib/api";
+import { 
+  fetchRoomStatus, 
+  RoomStatus, 
+  ERROR_MESSAGES, 
+  validateReservation,
+  updateRoomStatus,
+  turnOffHardware,
+  ROOM_ID
+} from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 
 const POLLING_INTERVAL = 30000; // 30 seconds
@@ -9,6 +17,8 @@ export function useRoomStatus() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reservationId, setReservationId] = useState<string | undefined>(undefined);
+  const [reservationEndTime, setReservationEndTime] = useState<Date | null>(null);
+  const [isExpired, setIsExpired] = useState(false);
 
   const fetchStatus = useCallback(async (showError = false) => {
     try {
@@ -20,6 +30,11 @@ export function useRoomStatus() {
       const validation = await validateReservation("current_user_id");
       if (validation.valid && validation.reservation_id) {
         setReservationId(validation.reservation_id);
+        
+        // Set end time from reservation
+        if (validation.end_time) {
+          setReservationEndTime(new Date(validation.end_time));
+        }
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : ERROR_MESSAGES.CONNECTION;
@@ -36,6 +51,29 @@ export function useRoomStatus() {
     }
   }, []);
 
+  // Handle reservation expiry
+  const handleReservationExpiry = useCallback(async () => {
+    if (isExpired || !reservationId) return;
+    
+    setIsExpired(true);
+    
+    // Turn off hardware
+    try {
+      await turnOffHardware(reservationId);
+      console.log("Hardware turned off successfully");
+    } catch (err) {
+      console.error("Failed to turn off hardware:", err);
+    }
+    
+    // Update room status to "Awaiting Cleaning"
+    try {
+      await updateRoomStatus(ROOM_ID, "Aguardando Limpeza");
+      console.log("Room status updated to Awaiting Cleaning");
+    } catch (err) {
+      console.error("Failed to update room status:", err);
+    }
+  }, [isExpired, reservationId]);
+
   useEffect(() => {
     fetchStatus(false); // Don't show error on initial load
 
@@ -44,8 +82,8 @@ export function useRoomStatus() {
     return () => clearInterval(interval);
   }, [fetchStatus]);
 
-  // Derived state: controls should be enabled only when room is occupied
-  const controlsEnabled = status?.isOccupied ?? false;
+  // Derived state: controls should be enabled only when room is occupied and not expired
+  const controlsEnabled = (status?.isOccupied ?? false) && !isExpired;
 
   return { 
     status, 
@@ -53,6 +91,9 @@ export function useRoomStatus() {
     error, 
     refetch: () => fetchStatus(true),
     controlsEnabled,
-    reservationId
+    reservationId,
+    reservationEndTime,
+    isExpired,
+    handleReservationExpiry
   };
 }

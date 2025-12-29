@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { GlassCard } from "@/components/GlassCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { submitStaffAudit } from "@/lib/api";
+import { submitStaffAudit, updateRoomStatus, STAFF_LIST, ROOM_ID } from "@/lib/api";
+import { PhotoUpload } from "@/components/PhotoUpload";
 import { 
   Zap, 
   ClipboardCheck, 
@@ -16,7 +18,10 @@ import {
   Tv,
   AlertTriangle,
   Loader2,
-  CheckCircle
+  CheckCircle,
+  Sparkles,
+  Armchair,
+  User
 } from "lucide-react";
 
 interface ChecklistItem {
@@ -26,33 +31,69 @@ interface ChecklistItem {
   checked: boolean;
 }
 
-const initialChecklist: ChecklistItem[] = [
-  { id: "water", label: "Purificador de água higienizado e copos de papel repostos", icon: Droplets, checked: false },
-  { id: "bathroom", label: "Banheiro: Papel higiênico verificado e Sabão líquido abastecido", icon: Droplets, checked: false },
-  { id: "hygiene", label: "Higiene: Lixeiras esvaziadas, sacos trocados e superfícies limpas", icon: Trash2, checked: false },
-  { id: "organization", label: "Organização: Cabos HDMI/Adaptadores organizados e Ar-condicionado/Luzes testados", icon: Tv, checked: false },
+// Cleaning checklist (Álcool 70%)
+const initialCleaningChecklist: ChecklistItem[] = [
+  { id: "toilet", label: "Vaso sanitário higienizado", icon: Droplets, checked: false },
+  { id: "sink", label: "Pia limpa e desinfetada", icon: Droplets, checked: false },
+  { id: "faucet", label: "Torneira higienizada", icon: Droplets, checked: false },
+  { id: "mirror", label: "Espelho limpo", icon: Sparkles, checked: false },
+  { id: "remotes", label: "Comandos (TV/Ar) desinfetados", icon: Tv, checked: false },
+  { id: "handles", label: "Maçanetas limpas", icon: Sparkles, checked: false },
+  { id: "switches", label: "Interruptores desinfetados", icon: Sparkles, checked: false },
+  { id: "surfaces", label: "Superfícies de mesa limpas", icon: Sparkles, checked: false },
+];
+
+// Organization checklist
+const initialOrganizationChecklist: ChecklistItem[] = [
+  { id: "chairs", label: "Cadeiras alinhadas simetricamente", icon: Armchair, checked: false },
+  { id: "cables", label: "Cabos HDMI/Adaptadores organizados", icon: Tv, checked: false },
+  { id: "trash", label: "Lixeiras esvaziadas e sacos trocados", icon: Trash2, checked: false },
+  { id: "supplies", label: "Café/Açúcar/Copos repostos", icon: Coffee, checked: false },
 ];
 
 export default function Staff() {
-  const [roomId] = useState("smart-room-isis-01");
+  const [staffId, setStaffId] = useState("");
   const [reservationId, setReservationId] = useState("");
   const [coffeeCapsulesRemaining, setCoffeeCapsulesRemaining] = useState<number>(20);
-  const [checklist, setChecklist] = useState<ChecklistItem[]>(initialChecklist);
+  const [cleaningChecklist, setCleaningChecklist] = useState<ChecklistItem[]>(initialCleaningChecklist);
+  const [organizationChecklist, setOrganizationChecklist] = useState<ChecklistItem[]>(initialOrganizationChecklist);
   const [damageReport, setDamageReport] = useState("");
+  const [photos, setPhotos] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  const toggleChecklistItem = (id: string) => {
-    setChecklist((prev) =>
+  const selectedStaff = STAFF_LIST.find(s => s.id === staffId);
+
+  const toggleCleaningItem = (id: string) => {
+    setCleaningChecklist((prev) =>
       prev.map((item) =>
         item.id === id ? { ...item, checked: !item.checked } : item
       )
     );
   };
 
-  const allChecked = checklist.every((item) => item.checked);
+  const toggleOrganizationItem = (id: string) => {
+    setOrganizationChecklist((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, checked: !item.checked } : item
+      )
+    );
+  };
+
+  const allCleaningChecked = cleaningChecklist.every((item) => item.checked);
+  const allOrganizationChecked = organizationChecklist.every((item) => item.checked);
+  const hasPhotos = photos.length > 0;
 
   const handleSubmit = async () => {
+    if (!staffId) {
+      toast({
+        title: "Campo obrigatório",
+        description: "Selecione o colaborador.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!reservationId.trim()) {
       toast({
         title: "Campo obrigatório",
@@ -71,10 +112,28 @@ export default function Staff() {
       return;
     }
 
-    if (!allChecked) {
+    if (!allCleaningChecked) {
       toast({
-        title: "Checklist incompleto",
-        description: "Complete todos os itens do checklist antes de finalizar.",
+        title: "Checklist de Higienização incompleto",
+        description: "Complete todos os itens de higienização antes de finalizar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!allOrganizationChecked) {
+      toast({
+        title: "Checklist de Organização incompleto",
+        description: "Complete todos os itens de organização antes de finalizar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!hasPhotos) {
+      toast({
+        title: "Fotos obrigatórias",
+        description: "Adicione pelo menos uma foto para liberar a sala.",
         variant: "destructive",
       });
       return;
@@ -83,16 +142,27 @@ export default function Staff() {
     setIsSubmitting(true);
 
     try {
+      // Submit audit data
       await submitStaffAudit({
-        room_id: roomId,
+        room_id: ROOM_ID,
         reservation_id: reservationId,
+        staff_id: staffId,
+        staff_name: selectedStaff?.name || "",
         coffee_capsules_remaining: coffeeCapsulesRemaining,
-        checklist: checklist.reduce((acc, item) => {
+        cleaning_checklist: cleaningChecklist.reduce((acc, item) => {
+          acc[item.id] = item.checked;
+          return acc;
+        }, {} as Record<string, boolean>),
+        organization_checklist: organizationChecklist.reduce((acc, item) => {
           acc[item.id] = item.checked;
           return acc;
         }, {} as Record<string, boolean>),
         damage_report: damageReport.trim() || null,
+        photo_urls: photos,
       });
+
+      // Update room status to Available
+      await updateRoomStatus(ROOM_ID, "Disponível");
 
       setIsSuccess(true);
       toast({
@@ -103,10 +173,13 @@ export default function Staff() {
       // Reset form after success
       setTimeout(() => {
         setIsSuccess(false);
+        setStaffId("");
         setReservationId("");
         setCoffeeCapsulesRemaining(20);
-        setChecklist(initialChecklist);
+        setCleaningChecklist(initialCleaningChecklist);
+        setOrganizationChecklist(initialOrganizationChecklist);
         setDamageReport("");
+        setPhotos([]);
       }, 3000);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Erro ao enviar dados";
@@ -136,16 +209,35 @@ export default function Staff() {
             Área do Staff
           </h2>
           <p className="text-muted-foreground text-sm">
-            Manutenção e Check-out da Sala
+            Auditoria e Higienização da Sala
           </p>
         </div>
 
         <div className="space-y-5">
-          {/* Room & Reservation */}
+          {/* Staff & Reservation */}
           <GlassCard className="space-y-4">
-            <h3 className="text-lg font-semibold">Identificação</h3>
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <User className="w-5 h-5 text-primary" />
+              Identificação
+            </h3>
             
             <div className="space-y-3">
+              <div>
+                <Label htmlFor="staff">Colaborador *</Label>
+                <Select value={staffId} onValueChange={setStaffId}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Selecione o colaborador" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STAFF_LIST.map((staff) => (
+                      <SelectItem key={staff.id} value={staff.id}>
+                        {staff.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div>
                 <Label htmlFor="room">Sala</Label>
                 <Input 
@@ -169,15 +261,71 @@ export default function Staff() {
             </div>
           </GlassCard>
 
+          {/* Cleaning Checklist (Álcool 70%) */}
+          <GlassCard className="space-y-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-primary" />
+              Checklist de Higienização (Álcool 70%)
+            </h3>
+            
+            <div className="space-y-2">
+              {cleaningChecklist.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors cursor-pointer"
+                  onClick={() => toggleCleaningItem(item.id)}
+                >
+                  <Checkbox
+                    id={`cleaning-${item.id}`}
+                    checked={item.checked}
+                    onCheckedChange={() => toggleCleaningItem(item.id)}
+                  />
+                  <item.icon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  <Label htmlFor={`cleaning-${item.id}`} className="cursor-pointer text-sm flex-1">
+                    {item.label}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          </GlassCard>
+
+          {/* Organization Checklist */}
+          <GlassCard className="space-y-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Armchair className="w-5 h-5 text-primary" />
+              Checklist de Organização
+            </h3>
+            
+            <div className="space-y-2">
+              {organizationChecklist.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors cursor-pointer"
+                  onClick={() => toggleOrganizationItem(item.id)}
+                >
+                  <Checkbox
+                    id={`org-${item.id}`}
+                    checked={item.checked}
+                    onCheckedChange={() => toggleOrganizationItem(item.id)}
+                  />
+                  <item.icon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  <Label htmlFor={`org-${item.id}`} className="cursor-pointer text-sm flex-1">
+                    {item.label}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          </GlassCard>
+
           {/* Coffee Audit */}
           <GlassCard className="space-y-4">
             <h3 className="text-lg font-semibold flex items-center gap-2">
               <Coffee className="w-5 h-5 text-primary" />
-              Auditoria de Café
+              Controlo de Café
             </h3>
             
             <div>
-              <Label htmlFor="capsules">Cápsulas de Café Restantes (Estoque inicial: 20) *</Label>
+              <Label htmlFor="capsules">Cápsulas Restantes (Estoque inicial: 20) *</Label>
               <Input
                 id="capsules"
                 type="number"
@@ -193,32 +341,19 @@ export default function Staff() {
             </div>
           </GlassCard>
 
-          {/* Hospitality Checklist */}
+          {/* Photo Evidence */}
           <GlassCard className="space-y-4">
-            <h3 className="text-lg font-semibold">Checklist de Hospitalidade</h3>
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-primary" />
+              Evidências Fotográficas
+            </h3>
             
-            <div className="space-y-3">
-              {checklist.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-start gap-3 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors cursor-pointer"
-                  onClick={() => toggleChecklistItem(item.id)}
-                >
-                  <Checkbox
-                    id={item.id}
-                    checked={item.checked}
-                    onCheckedChange={() => toggleChecklistItem(item.id)}
-                    className="mt-0.5"
-                  />
-                  <div className="flex items-center gap-2 flex-1">
-                    <item.icon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                    <Label htmlFor={item.id} className="cursor-pointer text-sm">
-                      {item.label}
-                    </Label>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <PhotoUpload
+              photos={photos}
+              onPhotosChange={setPhotos}
+              maxPhotos={5}
+              required={true}
+            />
           </GlassCard>
 
           {/* Damage Report */}
@@ -242,7 +377,6 @@ export default function Staff() {
             className="w-full h-14"
             onClick={handleSubmit}
             disabled={isSubmitting || isSuccess}
-            variant={isSuccess ? "default" : "default"}
           >
             {isSubmitting ? (
               <>

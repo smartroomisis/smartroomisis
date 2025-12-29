@@ -11,6 +11,18 @@ export const AUTH_TOKEN = "SECRET_TOKEN_SJC";
 export const ROOM_ID = "smart-room-isis-01";
 export const ROOM_NAME = "SMART ROOM ISIS";
 
+// Pricing Configuration
+export const CAPSULE_COST = 2.50; // Cost per coffee capsule
+export const CLEANING_FEE = 30.00; // Fixed cleaning fee
+
+// Staff list
+export const STAFF_LIST = [
+  { id: "staff_001", name: "João Silva" },
+  { id: "staff_002", name: "Maria Santos" },
+  { id: "staff_003", name: "Pedro Oliveira" },
+  { id: "staff_004", name: "Ana Costa" },
+];
+
 // Error messages
 export const ERROR_MESSAGES = {
   CONNECTION: "Erro de conexão com a sala. Verifique sua internet ou contate o suporte.",
@@ -75,6 +87,17 @@ export async function updateReservationStatus(
     console.error('Error updating reservation status:', err);
     return { success: false };
   }
+}
+
+// Update room status (for admin panel)
+export async function updateRoomStatus(
+  roomId: string,
+  status: "Disponível" | "Ocupado" | "Aguardando Limpeza"
+): Promise<{ success: boolean }> {
+  return apiCall(`${N8N_WEBHOOK_URL}/room-status-update`, {
+    room_id: roomId,
+    status,
+  });
 }
 
 // Generic API call with error handling and auth header
@@ -183,6 +206,18 @@ export async function controlHVAC(
   });
 }
 
+// Turn off hardware (AC and TV) - called on reservation end
+export async function turnOffHardware(
+  reservationId: string
+): Promise<{ success: boolean }> {
+  return apiCall(`${N8N_WEBHOOK_URL}/reservation-end`, {
+    room_id: ROOM_ID,
+    reservation_id: reservationId,
+    actions: ["turn_off_ac", "turn_off_tv"],
+    reason: "reservation_ended",
+  });
+}
+
 // Room Status Interface
 export interface RoomStatus {
   isOccupied: boolean;
@@ -239,17 +274,34 @@ export async function requestCleaning(): Promise<{ success: boolean }> {
   });
 }
 
-// Staff Audit API
+// Enhanced Staff Audit API with photos and costs
 export interface StaffAuditData {
   room_id: string;
   reservation_id: string;
+  staff_id: string;
+  staff_name: string;
   coffee_capsules_remaining: number;
-  checklist: Record<string, boolean>;
+  cleaning_checklist: Record<string, boolean>;
+  organization_checklist: Record<string, boolean>;
   damage_report: string | null;
+  photo_urls: string[];
 }
 
 export async function submitStaffAudit(data: StaffAuditData): Promise<{ success: boolean }> {
-  return apiCall(`${N8N_WEBHOOK_URL}/staff-audit`, data as unknown as Record<string, unknown>);
+  // Calculate costs
+  const capsulesUsed = 20 - data.coffee_capsules_remaining;
+  const insumosCost = capsulesUsed * CAPSULE_COST;
+  
+  const payload = {
+    ...data,
+    capsules_used: capsulesUsed,
+    insumos_cost: insumosCost,
+    cleaning_fee: CLEANING_FEE,
+    total_cost: insumosCost + CLEANING_FEE,
+    submitted_at: new Date().toISOString(),
+  };
+  
+  return apiCall(`${N8N_WEBHOOK_URL}/staff-audit`, payload as unknown as Record<string, unknown>);
 }
 
 // Financial API
@@ -259,6 +311,8 @@ export interface Expense {
   category: string;
   amount: number;
   description: string;
+  payment_status?: "Pendente" | "Pago";
+  paid_date?: string;
 }
 
 export interface FinancialSummary {
