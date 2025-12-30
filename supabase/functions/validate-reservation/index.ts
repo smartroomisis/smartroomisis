@@ -24,8 +24,27 @@ interface AirtableResponse {
   records: AirtableRecord[];
 }
 
-// 5 minute tolerance in milliseconds
-const TIME_TOLERANCE_MS = 5 * 60 * 1000;
+// 10 minute tolerance in milliseconds (10 min before start, 10 min after end)
+const TIME_TOLERANCE_MS = 10 * 60 * 1000;
+
+// Convert date to São Paulo timezone
+function toSaoPauloTime(date: Date): Date {
+  // São Paulo is UTC-3 (no DST since 2019)
+  const saoPauloOffset = -3 * 60; // -3 hours in minutes
+  const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
+  return new Date(utc + (saoPauloOffset * 60000));
+}
+
+// Get current time in São Paulo
+function getCurrentSaoPauloTime(): Date {
+  return toSaoPauloTime(new Date());
+}
+
+// Parse Airtable date and convert to São Paulo time
+function parseAirtableDate(dateStr: string): Date {
+  const date = new Date(dateStr);
+  return date; // Airtable dates are already in the correct timezone
+}
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -91,7 +110,9 @@ serve(async (req) => {
     console.log(`Found ${data.records.length} total records in Reservas table`);
 
     // Find a valid reservation for the current user and time
-    const currentTime = new Date();
+    // Use São Paulo timezone for all comparisons
+    const currentTime = getCurrentSaoPauloTime();
+    console.log(`Current São Paulo time: ${currentTime.toISOString()}`);
     
     const validReservation = data.records.find((record) => {
       const fields = record.fields;
@@ -105,23 +126,23 @@ serve(async (req) => {
         return false;
       }
       
-      // Check time range with 5-minute tolerance
-      const startTime = fields['Início'] ? new Date(fields['Início']) : null;
-      const endTime = fields['Fim'] ? new Date(fields['Fim']) : null;
+      // Check time range with 10-minute tolerance
+      const startTime = fields['Início'] ? parseAirtableDate(fields['Início']) : null;
+      const endTime = fields['Fim'] ? parseAirtableDate(fields['Fim']) : null;
       
       if (!startTime || !endTime) {
         console.log(`Record ${record.id} skipped - missing time fields`);
         return false;
       }
       
-      // Add tolerance: allow 5 minutes before start and 5 minutes after end
+      // Add tolerance: allow 10 minutes before start and 10 minutes after end
       const adjustedStartTime = new Date(startTime.getTime() - TIME_TOLERANCE_MS);
       const adjustedEndTime = new Date(endTime.getTime() + TIME_TOLERANCE_MS);
       
       const isWithinTimeRange = currentTime >= adjustedStartTime && currentTime <= adjustedEndTime;
       
       if (!isWithinTimeRange) {
-        console.log(`Record ${record.id} skipped - outside time range (with tolerance): ${startTime.toISOString()} - ${endTime.toISOString()}, current: ${currentTime.toISOString()}`);
+        console.log(`Record ${record.id} skipped - outside time range (with 10min tolerance): ${startTime.toISOString()} - ${endTime.toISOString()}, current: ${currentTime.toISOString()}`);
         return false;
       }
       
