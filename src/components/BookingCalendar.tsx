@@ -2,9 +2,12 @@ import { useState } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { GlassCard } from "@/components/GlassCard";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { CalendarDays, Loader2, CheckCircle, CreditCard } from "lucide-react";
+import { CalendarDays, Loader2, CheckCircle, CreditCard, Ticket, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { getSystemConfig } from "@/components/SystemSettings";
+import { validateCoupon, useCoupon } from "@/components/CouponManager";
 
 const timeSlots = [
   { time: "08:00", available: true },
@@ -20,12 +23,55 @@ const timeSlots = [
   { time: "18:00", available: true },
 ];
 
-const HOURLY_RATE = 85;
+interface PriceBreakdown {
+  baseTotal: number;
+  progressiveDiscount: number;
+  couponDiscount: number;
+  finalTotal: number;
+}
+
+function calculatePrice(
+  hoursSelected: number,
+  hourlyRate: number,
+  progressiveDiscountPercent: number,
+  couponDiscountPercent: number
+): PriceBreakdown {
+  if (hoursSelected === 0) {
+    return { baseTotal: 0, progressiveDiscount: 0, couponDiscount: 0, finalTotal: 0 };
+  }
+
+  // First hour at full price
+  const firstHour = hourlyRate;
+  
+  // Remaining hours with progressive discount
+  const remainingHours = hoursSelected - 1;
+  const discountedHourPrice = hourlyRate * (1 - progressiveDiscountPercent / 100);
+  const remainingTotal = remainingHours * discountedHourPrice;
+  
+  const baseTotal = hoursSelected * hourlyRate;
+  const progressiveDiscount = remainingHours * hourlyRate * (progressiveDiscountPercent / 100);
+  
+  const subtotal = firstHour + remainingTotal;
+  const couponDiscount = subtotal * (couponDiscountPercent / 100);
+  
+  const finalTotal = subtotal - couponDiscount;
+
+  return {
+    baseTotal,
+    progressiveDiscount,
+    couponDiscount,
+    finalTotal: Math.max(0, finalTotal),
+  };
+}
 
 export function BookingCalendar() {
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
   const [paymentState, setPaymentState] = useState<"idle" | "loading" | "success">("idle");
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(null);
+
+  const config = getSystemConfig();
 
   const toggleSlot = (time: string) => {
     setSelectedSlots((prev) =>
@@ -33,11 +79,58 @@ export function BookingCalendar() {
     );
   };
 
-  const totalPrice = selectedSlots.length * HOURLY_RATE;
+  const handleApplyCoupon = () => {
+    if (!couponCode.trim()) return;
+
+    const result = validateCoupon(couponCode);
+    if (result.valid) {
+      setAppliedCoupon({ code: couponCode.toUpperCase(), discount: result.discount });
+      toast({
+        title: "Cupom Aplicado!",
+        description: result.message,
+      });
+    } else {
+      toast({
+        title: "Cupom Inválido",
+        description: result.message,
+        variant: "destructive",
+      });
+    }
+    setCouponCode("");
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    toast({
+      title: "Cupom Removido",
+    });
+  };
+
+  const priceBreakdown = calculatePrice(
+    selectedSlots.length,
+    config.hourlyRate,
+    config.progressiveDiscount,
+    appliedCoupon?.discount || 0
+  );
 
   const handlePayment = async () => {
+    if (selectedSlots.length < config.minimumHours) {
+      toast({
+        title: "Mínimo não atingido",
+        description: `A reserva mínima é de ${config.minimumHours} hora(s)`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setPaymentState("loading");
     await new Promise((resolve) => setTimeout(resolve, 2500));
+    
+    // Mark coupon as used
+    if (appliedCoupon) {
+      useCoupon(appliedCoupon.code);
+    }
+    
     setPaymentState("success");
     toast({
       title: "Reserva Confirmada!",
@@ -46,6 +139,7 @@ export function BookingCalendar() {
     setTimeout(() => {
       setPaymentState("idle");
       setSelectedSlots([]);
+      setAppliedCoupon(null);
     }, 3000);
   };
 
@@ -90,6 +184,44 @@ export function BookingCalendar() {
               </button>
             ))}
           </div>
+          {config.minimumHours > 1 && (
+            <p className="text-xs text-muted-foreground mt-3">
+              * Reserva mínima: {config.minimumHours} hora(s)
+            </p>
+          )}
+        </GlassCard>
+
+        {/* Coupon Section */}
+        <GlassCard>
+          <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
+            <Ticket className="w-4 h-4 text-primary" />
+            Cupom de Desconto
+          </h3>
+          {appliedCoupon ? (
+            <div className="flex items-center justify-between p-3 rounded-lg bg-success/10 border border-success/30">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-success" />
+                <span className="font-mono font-bold text-success">{appliedCoupon.code}</span>
+                <span className="text-sm text-success">-{appliedCoupon.discount}%</span>
+              </div>
+              <Button variant="ghost" size="sm" onClick={handleRemoveCoupon}>
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Input
+                placeholder="Digite o cupom"
+                value={couponCode}
+                onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                onKeyDown={(e) => e.key === "Enter" && handleApplyCoupon()}
+                className="font-mono uppercase"
+              />
+              <Button variant="outline" onClick={handleApplyCoupon}>
+                Aplicar
+              </Button>
+            </div>
+          )}
         </GlassCard>
 
         {/* Summary */}
@@ -102,13 +234,28 @@ export function BookingCalendar() {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Valor por hora</span>
-              <span className="font-medium">R$ {HOURLY_RATE},00</span>
+              <span className="font-medium">R$ {config.hourlyRate.toFixed(2)}</span>
             </div>
+            
+            {selectedSlots.length > 1 && config.progressiveDiscount > 0 && (
+              <div className="flex justify-between text-sm text-success">
+                <span>Desconto progressivo ({config.progressiveDiscount}%)</span>
+                <span>- R$ {priceBreakdown.progressiveDiscount.toFixed(2)}</span>
+              </div>
+            )}
+            
+            {appliedCoupon && priceBreakdown.couponDiscount > 0 && (
+              <div className="flex justify-between text-sm text-success">
+                <span>Cupom {appliedCoupon.code} ({appliedCoupon.discount}%)</span>
+                <span>- R$ {priceBreakdown.couponDiscount.toFixed(2)}</span>
+              </div>
+            )}
+            
             <div className="h-px bg-border my-2" />
             <div className="flex justify-between">
               <span className="font-semibold">Total</span>
               <span className="text-2xl font-bold text-primary neon-text">
-                R$ {totalPrice},00
+                R$ {priceBreakdown.finalTotal.toFixed(2)}
               </span>
             </div>
           </div>
@@ -116,7 +263,7 @@ export function BookingCalendar() {
           <Button
             variant={paymentState === "success" ? "success" : "default"}
             className="w-full mt-4 h-12"
-            disabled={selectedSlots.length === 0 || paymentState === "loading"}
+            disabled={selectedSlots.length < config.minimumHours || paymentState === "loading"}
             onClick={handlePayment}
           >
             {paymentState === "idle" && (
