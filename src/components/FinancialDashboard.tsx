@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { GlassCard } from "@/components/GlassCard";
 import { fetchFinancialSummary, FinancialSummary } from "@/lib/api";
-import { TrendingUp, TrendingDown, DollarSign, Coffee, Receipt, Loader2 } from "lucide-react";
+import { getSystemConfig } from "@/components/SystemSettings";
+import { TrendingUp, TrendingDown, DollarSign, Coffee, Receipt, Loader2, Bus, Briefcase } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -56,10 +57,22 @@ export function FinancialDashboard() {
     );
   }
 
+  const config = getSystemConfig();
+  
+  // Calculate staff costs based on reservation count
+  const staffServiceCost = summary.reservationCount * config.restartFee;
+  const staffTransportCost = summary.reservationCount * config.transportAllowance;
+  const totalStaffCost = staffServiceCost + staffTransportCost;
+  
+  // Adjusted net profit considering all costs
+  const adjustedNetProfit = summary.totalRevenue - summary.totalExpenses - summary.coffeeCost - totalStaffCost;
+
   const revenueVsExpensesData = [
     { name: "Receita", value: summary.totalRevenue, fill: "hsl(var(--success))" },
     { name: "Despesas", value: summary.totalExpenses, fill: "hsl(var(--destructive))" },
     { name: "Custo Café", value: summary.coffeeCost, fill: "hsl(var(--warning))" },
+    { name: "Staff (Serviço)", value: staffServiceCost, fill: "hsl(var(--accent))" },
+    { name: "Staff (Transporte)", value: staffTransportCost, fill: "hsl(var(--primary))" },
   ];
 
   const expensesByCategoryData = Object.entries(summary.expensesByCategory).map(
@@ -80,7 +93,7 @@ export function FinancialDashboard() {
   return (
     <div className="space-y-6">
       {/* Main Metrics */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3">
         <GlassCard className="space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">Receita Total</p>
@@ -108,21 +121,40 @@ export function FinancialDashboard() {
           <p className="text-xs text-muted-foreground">Cápsulas consumidas</p>
         </GlassCard>
 
-        <GlassCard className={`space-y-2 ${summary.netProfit >= 0 ? 'border-success/30' : 'border-destructive/30'}`}>
+        <GlassCard className="space-y-2">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">Lucro Líquido</p>
-            {summary.netProfit >= 0 ? (
-              <TrendingUp className="w-4 h-4 text-success" />
-            ) : (
-              <TrendingDown className="w-4 h-4 text-destructive" />
-            )}
+            <p className="text-sm text-muted-foreground">Custo Staff</p>
+            <Briefcase className="w-4 h-4 text-accent" />
           </div>
-          <p className={`text-2xl font-bold neon-text ${summary.netProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
-            {formatCurrency(summary.netProfit)}
-          </p>
-          <p className="text-xs text-muted-foreground">Receita - Custos</p>
+          <p className="text-2xl font-bold text-accent">{formatCurrency(totalStaffCost)}</p>
+          <div className="text-xs text-muted-foreground space-y-0.5">
+            <p className="flex items-center gap-1">
+              <Briefcase className="w-3 h-3" /> Serviço: {formatCurrency(staffServiceCost)}
+            </p>
+            <p className="flex items-center gap-1">
+              <Bus className="w-3 h-3" /> Transporte: {formatCurrency(staffTransportCost)}
+            </p>
+          </div>
         </GlassCard>
       </div>
+
+      {/* Net Profit Card */}
+      <GlassCard className={`space-y-2 ${adjustedNetProfit >= 0 ? 'border-success/30' : 'border-destructive/30'}`}>
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">Lucro Líquido</p>
+          {adjustedNetProfit >= 0 ? (
+            <TrendingUp className="w-4 h-4 text-success" />
+          ) : (
+            <TrendingDown className="w-4 h-4 text-destructive" />
+          )}
+        </div>
+        <p className={`text-2xl font-bold neon-text ${adjustedNetProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
+          {formatCurrency(adjustedNetProfit)}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Receita - Despesas - Café - Staff (Serviço + Transporte)
+        </p>
+      </GlassCard>
 
       {/* Charts */}
       <div className="grid gap-6 md:grid-cols-2">
