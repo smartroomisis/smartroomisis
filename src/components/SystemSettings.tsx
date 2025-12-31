@@ -11,13 +11,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Settings, DollarSign, Clock, Percent, Save, RotateCcw } from "lucide-react";
+import { Settings, DollarSign, Clock, Percent, Save, RotateCcw, User } from "lucide-react";
 
 export interface SystemConfig {
   hourlyRate: number;
   coffeePricePerCapsule: number;
   minimumHours: number;
   progressiveDiscount: number;
+  restartFee: number;
+  transportAllowance: number;
 }
 
 const DEFAULT_CONFIG: SystemConfig = {
@@ -25,6 +27,8 @@ const DEFAULT_CONFIG: SystemConfig = {
   coffeePricePerCapsule: 2.50,
   minimumHours: 1,
   progressiveDiscount: 10,
+  restartFee: 30,
+  transportAllowance: 10,
 };
 
 const STORAGE_KEY = "smart_room_system_config";
@@ -178,6 +182,68 @@ export function SystemSettings() {
           <p className="text-xs text-muted-foreground">
             Desconto aplicado a partir da 2ª hora
           </p>
+        </div>
+
+        {/* Restart Fee */}
+        <div className="space-y-2">
+          <Label className="flex items-center gap-2">
+            <DollarSign className="w-4 h-4 text-accent" />
+            Valor Base do Restart (R$)
+          </Label>
+          <Input
+            type="number"
+            step="0.01"
+            min="0"
+            value={config.restartFee}
+            onChange={(e) => handleChange("restartFee", parseFloat(e.target.value) || 0)}
+            className="font-mono"
+          />
+          <p className="text-xs text-muted-foreground">
+            Valor fixo pela limpeza da sala
+          </p>
+        </div>
+
+        {/* Transport Allowance */}
+        <div className="space-y-2">
+          <Label className="flex items-center gap-2">
+            <DollarSign className="w-4 h-4 text-primary" />
+            Auxílio Transporte (R$)
+          </Label>
+          <Input
+            type="number"
+            step="0.01"
+            min="0"
+            value={config.transportAllowance}
+            onChange={(e) => handleChange("transportAllowance", parseFloat(e.target.value) || 0)}
+            className="font-mono"
+          />
+          <p className="text-xs text-muted-foreground">
+            Valor fixo pago por deslocamento
+          </p>
+        </div>
+      </div>
+
+      {/* Staff Payment Preview */}
+      <div className="mt-6 p-4 rounded-lg bg-accent/10 border border-accent/30">
+        <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+          <User className="w-4 h-4 text-accent" />
+          Prévia de Pagamento Staff
+        </h4>
+        <div className="grid grid-cols-3 gap-4 text-sm">
+          <div>
+            <span className="text-muted-foreground">Restart:</span>
+            <span className="ml-2 font-mono">R$ {config.restartFee.toFixed(2)}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Transporte:</span>
+            <span className="ml-2 font-mono">R$ {config.transportAllowance.toFixed(2)}</span>
+          </div>
+          <div className="text-right">
+            <span className="font-medium">Total a Receber:</span>
+            <span className="ml-2 font-mono text-accent font-bold">
+              R$ {(config.restartFee + config.transportAllowance).toFixed(2)}
+            </span>
+          </div>
         </div>
       </div>
 
