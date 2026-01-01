@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { GlassCard } from "@/components/GlassCard";
 import { fetchFinancialSummary, FinancialSummary } from "@/lib/api";
 import { getSystemConfig } from "@/components/SystemSettings";
-import { TrendingUp, TrendingDown, DollarSign, Coffee, Receipt, Loader2, Bus, Briefcase } from "lucide-react";
+import { getDASPaidThisYear } from "@/components/DASMEIControl";
+import { TrendingUp, TrendingDown, DollarSign, Coffee, Receipt, Loader2, Bus, Briefcase, FileText } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -64,8 +65,11 @@ export function FinancialDashboard() {
   const staffTransportCost = summary.reservationCount * config.transportAllowance;
   const totalStaffCost = staffServiceCost + staffTransportCost;
   
-  // Adjusted net profit considering all costs
-  const adjustedNetProfit = summary.totalRevenue - summary.totalExpenses - summary.coffeeCost - totalStaffCost;
+  // Get DAS paid this year
+  const dasPaidThisYear = getDASPaidThisYear();
+  
+  // Adjusted net profit considering all costs including DAS taxes
+  const adjustedNetProfit = summary.totalRevenue - summary.totalExpenses - summary.coffeeCost - totalStaffCost - dasPaidThisYear;
 
   const revenueVsExpensesData = [
     { name: "Receita", value: summary.totalRevenue, fill: "hsl(var(--success))" },
@@ -73,6 +77,7 @@ export function FinancialDashboard() {
     { name: "Custo Café", value: summary.coffeeCost, fill: "hsl(var(--warning))" },
     { name: "Staff (Serviço)", value: staffServiceCost, fill: "hsl(var(--accent))" },
     { name: "Staff (Transporte)", value: staffTransportCost, fill: "hsl(var(--primary))" },
+    { name: "Impostos (DAS)", value: dasPaidThisYear, fill: "hsl(262 60% 50%)" },
   ];
 
   const expensesByCategoryData = Object.entries(summary.expensesByCategory).map(
@@ -136,6 +141,16 @@ export function FinancialDashboard() {
             </p>
           </div>
         </GlassCard>
+
+        {/* DAS Taxes */}
+        <GlassCard className="space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">Impostos (DAS)</p>
+            <FileText className="w-4 h-4 text-purple-500" />
+          </div>
+          <p className="text-2xl font-bold text-purple-500">{formatCurrency(dasPaidThisYear)}</p>
+          <p className="text-xs text-muted-foreground">Total pago em {new Date().getFullYear()}</p>
+        </GlassCard>
       </div>
 
       {/* Net Profit Card */}
@@ -152,7 +167,7 @@ export function FinancialDashboard() {
           {formatCurrency(adjustedNetProfit)}
         </p>
         <p className="text-xs text-muted-foreground">
-          Receita - Despesas - Café - Staff (Serviço + Transporte)
+          Receita - Despesas - Café - Staff - Impostos (DAS)
         </p>
       </GlassCard>
 

@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Settings, DollarSign, Clock, Percent, Save, RotateCcw, User } from "lucide-react";
+import { Settings, DollarSign, Clock, Percent, Save, RotateCcw, User, Mail } from "lucide-react";
 
 export interface SystemConfig {
   hourlyRate: number;
@@ -20,6 +20,7 @@ export interface SystemConfig {
   progressiveDiscount: number;
   restartFee: number;
   transportAllowance: number;
+  alertEmail: string;
 }
 
 const DEFAULT_CONFIG: SystemConfig = {
@@ -29,6 +30,7 @@ const DEFAULT_CONFIG: SystemConfig = {
   progressiveDiscount: 10,
   restartFee: 30,
   transportAllowance: 10,
+  alertEmail: '',
 };
 
 const STORAGE_KEY = "smart_room_system_config";
@@ -57,7 +59,7 @@ export function SystemSettings() {
     setConfig(getSystemConfig());
   }, []);
 
-  const handleChange = (field: keyof SystemConfig, value: number) => {
+  const handleChange = (field: keyof SystemConfig, value: number | string) => {
     setConfig(prev => ({ ...prev, [field]: value }));
     setHasChanges(true);
   };
@@ -219,6 +221,24 @@ export function SystemSettings() {
           />
           <p className="text-xs text-muted-foreground">
             Valor fixo pago por deslocamento
+          </p>
+        </div>
+
+        {/* Alert Email */}
+        <div className="space-y-2 md:col-span-2">
+          <Label className="flex items-center gap-2">
+            <Mail className="w-4 h-4 text-primary" />
+            E-mail para Alertas Fiscais
+          </Label>
+          <Input
+            type="email"
+            value={config.alertEmail}
+            onChange={(e) => handleChange("alertEmail", e.target.value)}
+            placeholder="seu@email.com"
+            className="font-mono"
+          />
+          <p className="text-xs text-muted-foreground">
+            E-mail que receberá alertas de vencimento do DAS-MEI
           </p>
         </div>
       </div>

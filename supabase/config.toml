@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.manage-expenses]
 verify_jwt = false
+
+[functions.das-notification-webhook]
+verify_jwt = false
