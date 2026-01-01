@@ -9,10 +9,23 @@ import { ReservationCostList } from "@/components/ReservationCostList";
 import { StaffPayments } from "@/components/StaffPayments";
 import { SystemSettings } from "@/components/SystemSettings";
 import { CouponManager } from "@/components/CouponManager";
+import { ManagementReports } from "@/components/ManagementReports";
+import { DASMEIControl } from "@/components/DASMEIControl";
+import { MEILimitDashboard } from "@/components/MEILimitDashboard";
 import { AdminAuth, checkAdminAuth, logoutAdmin } from "@/components/AdminAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Zap, LayoutDashboard, DollarSign, Users, Settings, LogOut } from "lucide-react";
+import { 
+  Zap, 
+  LayoutDashboard, 
+  DollarSign, 
+  Users, 
+  Settings, 
+  LogOut,
+  FileBarChart,
+  FileText,
+  Target
+} from "lucide-react";
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState("overview");
@@ -57,7 +70,7 @@ export default function Admin() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-7 lg:w-auto lg:inline-grid">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <LayoutDashboard className="w-4 h-4" />
               <span className="hidden sm:inline">Visão Geral</span>
@@ -68,6 +81,21 @@ export default function Admin() {
               <span className="hidden sm:inline">Financeiro</span>
               <span className="sm:hidden">$</span>
             </TabsTrigger>
+            <TabsTrigger value="reports" className="flex items-center gap-2">
+              <FileBarChart className="w-4 h-4" />
+              <span className="hidden sm:inline">Relatórios</span>
+              <span className="sm:hidden">Rel</span>
+            </TabsTrigger>
+            <TabsTrigger value="mei" className="flex items-center gap-2">
+              <Target className="w-4 h-4" />
+              <span className="hidden sm:inline">Limite MEI</span>
+              <span className="sm:hidden">MEI</span>
+            </TabsTrigger>
+            <TabsTrigger value="das" className="flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              <span className="hidden sm:inline">DAS-MEI</span>
+              <span className="sm:hidden">DAS</span>
+            </TabsTrigger>
             <TabsTrigger value="staff-payments" className="flex items-center gap-2">
               <Users className="w-4 h-4" />
               <span className="hidden sm:inline">Staff</span>
@@ -75,8 +103,8 @@ export default function Admin() {
             </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <Settings className="w-4 h-4" />
-              <span className="hidden sm:inline">Configurações</span>
-              <span className="sm:hidden">Config</span>
+              <span className="hidden sm:inline">Config</span>
+              <span className="sm:hidden">⚙️</span>
             </TabsTrigger>
           </TabsList>
 
@@ -97,6 +125,21 @@ export default function Admin() {
               <ExpenseForm />
               <ReservationCostList />
             </div>
+          </TabsContent>
+
+          {/* Reports Tab */}
+          <TabsContent value="reports" className="space-y-6">
+            <ManagementReports />
+          </TabsContent>
+
+          {/* MEI Limit Tab */}
+          <TabsContent value="mei" className="space-y-6">
+            <MEILimitDashboard />
+          </TabsContent>
+
+          {/* DAS-MEI Tab */}
+          <TabsContent value="das" className="space-y-6">
+            <DASMEIControl />
           </TabsContent>
 
           {/* Staff Payments Tab */}
