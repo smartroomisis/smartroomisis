@@ -14,16 +14,250 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      credit_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          reservation_id: string | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          reservation_id?: string | null
+          type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          reservation_id?: string | null
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      enterprise_companies: {
+        Row: {
+          billing_email: string | null
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          created_at: string
+          email_domain: string
+          id: string
+          is_active: boolean
+          is_unlimited: boolean
+          monthly_hours_limit: number | null
+          name: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          billing_email?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          email_domain: string
+          id?: string
+          is_active?: boolean
+          is_unlimited?: boolean
+          monthly_hours_limit?: number | null
+          name: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          billing_email?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          email_domain?: string
+          id?: string
+          is_active?: boolean
+          is_unlimited?: boolean
+          monthly_hours_limit?: number | null
+          name?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      enterprise_usage_logs: {
+        Row: {
+          billed_at: string | null
+          booking_date: string
+          company_id: string
+          created_at: string
+          description: string | null
+          hours_used: number
+          id: string
+          is_billed: boolean
+          reservation_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          billed_at?: string | null
+          booking_date: string
+          company_id: string
+          created_at?: string
+          description?: string | null
+          hours_used: number
+          id?: string
+          is_billed?: boolean
+          reservation_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          billed_at?: string | null
+          booking_date?: string
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          hours_used?: number
+          id?: string
+          is_billed?: boolean
+          reservation_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enterprise_usage_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "enterprise_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          credit_hours: number
+          current_plan: Database["public"]["Enums"]["subscription_plan"]
+          email: string
+          enterprise_company_id: string | null
+          full_name: string | null
+          id: string
+          phone: string | null
+          stripe_customer_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          credit_hours?: number
+          current_plan?: Database["public"]["Enums"]["subscription_plan"]
+          email: string
+          enterprise_company_id?: string | null
+          full_name?: string | null
+          id: string
+          phone?: string | null
+          stripe_customer_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          credit_hours?: number
+          current_plan?: Database["public"]["Enums"]["subscription_plan"]
+          email?: string
+          enterprise_company_id?: string | null
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          stripe_customer_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      subscription_plans: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          included_hours: number
+          is_active: boolean
+          min_booking_hours: number
+          monthly_price: number
+          name: string
+          plan_type: Database["public"]["Enums"]["subscription_plan"]
+          stripe_price_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          included_hours?: number
+          is_active?: boolean
+          min_booking_hours?: number
+          monthly_price?: number
+          name: string
+          plan_type: Database["public"]["Enums"]["subscription_plan"]
+          stripe_price_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          included_hours?: number
+          is_active?: boolean
+          min_booking_hours?: number
+          monthly_price?: number
+          name?: string
+          plan_type?: Database["public"]["Enums"]["subscription_plan"]
+          stripe_price_id?: string | null
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "staff" | "user"
+      payment_mode: "credit" | "stripe" | "invoice"
+      subscription_plan: "basic" | "pro" | "executive" | "enterprise"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +384,10 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "staff", "user"],
+      payment_mode: ["credit", "stripe", "invoice"],
+      subscription_plan: ["basic", "pro", "executive", "enterprise"],
+    },
   },
 } as const
