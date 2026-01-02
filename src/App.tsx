@@ -4,18 +4,37 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
-import { useReservation } from "@/hooks/useReservation";
+import { useAuth } from "@/hooks/useAuth";
 import Dashboard from "./pages/Dashboard";
 import Booking from "./pages/Booking";
 import Admin from "./pages/Admin";
 import Staff from "./pages/Staff";
+import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
 
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  return <>{children}</>;
+}
+
 function AppContent() {
-  const { hasActiveReservation, loading } = useReservation();
+  const { user, loading } = useAuth();
 
   if (loading) {
     return (
@@ -27,23 +46,49 @@ function AppContent() {
 
   return (
     <>
-      <Navigation />
+      {user && <Navigation />}
       <Routes>
-        {/* Dynamic home route based on reservation status */}
+        <Route path="/auth" element={user ? <Navigate to="/" replace /> : <Auth />} />
         <Route
           path="/"
           element={
-            hasActiveReservation ? (
+            <ProtectedRoute>
               <Dashboard />
-            ) : (
-              <Navigate to="/booking" replace />
-            )
+            </ProtectedRoute>
           }
         />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/booking" element={<Booking />} />
-        <Route path="/admin" element={<Admin />} />
-        <Route path="/staff" element={<Staff />} />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/booking"
+          element={
+            <ProtectedRoute>
+              <Booking />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <Admin />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/staff"
+          element={
+            <ProtectedRoute>
+              <Staff />
+            </ProtectedRoute>
+          }
+        />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>
