@@ -4,10 +4,12 @@ import { GlassCard } from "@/components/GlassCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { CalendarDays, Loader2, CheckCircle, CreditCard, Ticket, X } from "lucide-react";
+import { CalendarDays, Loader2, CheckCircle, Ticket, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { getSystemConfig } from "@/components/SystemSettings";
 import { validateCoupon, useCoupon } from "@/components/CouponManager";
+import { SmartCheckout } from "@/components/SmartCheckout";
+import { useAuth } from "@/hooks/useAuth";
 
 const timeSlots = [
   { time: "08:00", available: true },
@@ -67,10 +69,11 @@ function calculatePrice(
 export function BookingCalendar() {
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
-  const [paymentState, setPaymentState] = useState<"idle" | "loading" | "success">("idle");
+  const [showCheckout, setShowCheckout] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(null);
 
+  const { profile } = useAuth();
   const config = getSystemConfig();
 
   const toggleSlot = (time: string) => {
@@ -113,7 +116,7 @@ export function BookingCalendar() {
     appliedCoupon?.discount || 0
   );
 
-  const handlePayment = async () => {
+  const handleReserve = () => {
     if (selectedSlots.length < config.minimumHours) {
       toast({
         title: "Mínimo não atingido",
@@ -122,26 +125,31 @@ export function BookingCalendar() {
       });
       return;
     }
+    setShowCheckout(true);
+  };
 
-    setPaymentState("loading");
-    await new Promise((resolve) => setTimeout(resolve, 2500));
-    
+  const handleCheckoutSuccess = (paymentMode: "credit" | "stripe" | "invoice") => {
     // Mark coupon as used
     if (appliedCoupon) {
       useCoupon(appliedCoupon.code);
     }
     
-    setPaymentState("success");
     toast({
       title: "Reserva Confirmada!",
-      description: `Sua reserva foi confirmada para ${selectedSlots.length} hora(s).`,
+      description: `Sua reserva foi confirmada para ${selectedSlots.length} hora(s). Modo: ${paymentMode}`,
     });
-    setTimeout(() => {
-      setPaymentState("idle");
-      setSelectedSlots([]);
-      setAppliedCoupon(null);
-    }, 3000);
+    
+    setShowCheckout(false);
+    setSelectedSlots([]);
+    setAppliedCoupon(null);
   };
+
+  // Get sorted selected slots for time range
+  const sortedSlots = [...selectedSlots].sort();
+  const startTime = sortedSlots[0] || "08:00";
+  const endTime = sortedSlots.length > 0 
+    ? `${(parseInt(sortedSlots[sortedSlots.length - 1].split(":")[0]) + 1).toString().padStart(2, "0")}:00`
+    : "09:00";
 
   return (
     <div className="grid gap-6 md:grid-cols-2">
@@ -258,35 +266,40 @@ export function BookingCalendar() {
                 R$ {priceBreakdown.finalTotal.toFixed(2)}
               </span>
             </div>
+
+            {/* Credit balance info */}
+            {profile && (
+              <div className="mt-2 p-2 rounded-lg bg-secondary/30 text-xs">
+                <span className="text-muted-foreground">Saldo disponível: </span>
+                <span className="font-bold text-primary">{profile.credit_hours}h</span>
+              </div>
+            )}
           </div>
 
           <Button
-            variant={paymentState === "success" ? "success" : "default"}
             className="w-full mt-4 h-12"
-            disabled={selectedSlots.length < config.minimumHours || paymentState === "loading"}
-            onClick={handlePayment}
+            disabled={selectedSlots.length < config.minimumHours}
+            onClick={handleReserve}
           >
-            {paymentState === "idle" && (
-              <>
-                <CreditCard className="w-5 h-5" />
-                <span>Finalizar Pagamento</span>
-              </>
-            )}
-            {paymentState === "loading" && (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                <span>Processando...</span>
-              </>
-            )}
-            {paymentState === "success" && (
-              <>
-                <CheckCircle className="w-5 h-5" />
-                <span>Pagamento Confirmado!</span>
-              </>
-            )}
+            <CalendarDays className="w-5 h-5 mr-2" />
+            Reservar {selectedSlots.length} hora(s)
           </Button>
         </GlassCard>
       </div>
+
+      {/* Smart Checkout Dialog */}
+      <SmartCheckout
+        open={showCheckout}
+        onOpenChange={setShowCheckout}
+        hoursRequested={selectedSlots.length}
+        pricePerHour={config.hourlyRate}
+        onSuccess={handleCheckoutSuccess}
+        reservationDetails={{
+          date: date?.toLocaleDateString("pt-BR") || "",
+          startTime,
+          endTime,
+        }}
+      />
     </div>
   );
 }

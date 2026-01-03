@@ -7,8 +7,12 @@ import { Services } from "@/components/Services";
 import { ReservationTimer } from "@/components/ReservationTimer";
 import { ReservationExpiredOverlay } from "@/components/ReservationExpiredOverlay";
 import { GlassCard } from "@/components/GlassCard";
+import { WalletBalance } from "@/components/WalletBalance";
 import { useRoomStatus } from "@/hooks/useRoomStatus";
-import { Zap, Loader2, AlertCircle, Clock } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { Zap, Loader2, AlertCircle, Clock, Building2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Dashboard() {
   const { 
@@ -23,11 +27,36 @@ export default function Dashboard() {
     handleReservationExpiry
   } = useRoomStatus();
 
+  const { profile, isEnterprise } = useAuth();
+  const [companyName, setCompanyName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (profile?.enterprise_company_id) {
+      fetchCompanyName(profile.enterprise_company_id);
+    }
+  }, [profile?.enterprise_company_id]);
+
+  const fetchCompanyName = async (companyId: string) => {
+    try {
+      const { data } = await supabase
+        .from("enterprise_companies")
+        .select("name")
+        .eq("id", companyId)
+        .single();
+      
+      if (data) {
+        setCompanyName(data.name);
+      }
+    } catch (err) {
+      console.error("Error fetching company:", err);
+    }
+  };
+
   // Use reservation end time or fallback to 2 hours from now
   const endTime = reservationEndTime || new Date(Date.now() + 2 * 60 * 60 * 1000);
 
   return (
-    <div className="min-h-screen pb-24 md:pt-20 md:pb-8">
+    <div className="min-h-screen pb-24 md:pt-20 md:pb-8 theme-client">
       {/* Expired Overlay */}
       {isExpired && <ReservationExpiredOverlay />}
       
@@ -38,9 +67,24 @@ export default function Dashboard() {
           <h1 className="text-xl font-bold neon-text">SMART ROOM ISIS</h1>
         </div>
 
+        {/* Enterprise Welcome Banner */}
+        {isEnterprise && companyName && (
+          <GlassCard className="mb-5 bg-accent/10 border-accent/30">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-full bg-accent/20">
+                <Building2 className="w-5 h-5 text-accent" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Colaborador</p>
+                <p className="font-semibold text-accent">{companyName}</p>
+              </div>
+            </div>
+          </GlassCard>
+        )}
+
         {/* Page Title */}
         <div className="mb-6">
-          <h2 className="text-2xl font-bold">Dashboard</h2>
+          <h2 className="text-2xl font-bold">Início</h2>
           <p className="text-muted-foreground text-sm">
             {isLoading ? (
               <span className="flex items-center gap-2">
@@ -57,6 +101,11 @@ export default function Dashboard() {
               "Sala livre - controles desabilitados"
             )}
           </p>
+        </div>
+
+        {/* Wallet Balance - Visible for all users */}
+        <div className="mb-5">
+          <WalletBalance />
         </div>
 
         {/* No Active Reservation Message */}

@@ -9,12 +9,18 @@ import Dashboard from "./pages/Dashboard";
 import Booking from "./pages/Booking";
 import Admin from "./pages/Admin";
 import Staff from "./pages/Staff";
+import Profile from "./pages/Profile";
+import Support from "./pages/Support";
+import StaffProblems from "./pages/StaffProblems";
+import StaffPayments from "./pages/StaffPayments";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const queryClient = new QueryClient();
 
+// Protected route that requires authentication
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
 
@@ -33,8 +39,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function AppContent() {
-  const { user, loading } = useAuth();
+// Admin-only route protection
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading, isAdmin } = useAuth();
 
   if (loading) {
     return (
@@ -44,11 +51,66 @@ function AppContent() {
     );
   }
 
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  // If not admin, redirect to home
+  if (!isAdmin) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+// Staff-only route protection
+function StaffRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading, isAdmin, isStaff } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  // Admins can access staff routes too
+  if (!isAdmin && !isStaff) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+function AppContent() {
+  const { user, loading, isAdmin, isStaff } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Determine theme class based on user role
+  const getThemeClass = () => {
+    if (isAdmin || isStaff) return "theme-admin";
+    return "theme-client";
+  };
+
   return (
-    <>
+    <div className={cn("min-h-screen bg-background", user && getThemeClass())}>
       {user && <Navigation />}
       <Routes>
         <Route path="/auth" element={user ? <Navigate to="/" replace /> : <Auth />} />
+        
+        {/* Client Routes */}
         <Route
           path="/"
           element={
@@ -74,24 +136,61 @@ function AppContent() {
           }
         />
         <Route
-          path="/admin"
+          path="/profile"
           element={
             <ProtectedRoute>
-              <Admin />
+              <Profile />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/staff"
+          path="/support"
           element={
             <ProtectedRoute>
-              <Staff />
+              <Support />
             </ProtectedRoute>
           }
         />
+        
+        {/* Admin Routes */}
+        <Route
+          path="/admin"
+          element={
+            <AdminRoute>
+              <Admin />
+            </AdminRoute>
+          }
+        />
+        
+        {/* Staff Routes */}
+        <Route
+          path="/staff"
+          element={
+            <StaffRoute>
+              <Staff />
+            </StaffRoute>
+          }
+        />
+        <Route
+          path="/staff/problems"
+          element={
+            <StaffRoute>
+              <StaffProblems />
+            </StaffRoute>
+          }
+        />
+        <Route
+          path="/staff/payments"
+          element={
+            <StaffRoute>
+              <StaffPayments />
+            </StaffRoute>
+          }
+        />
+        
         <Route path="*" element={<NotFound />} />
       </Routes>
-    </>
+    </div>
   );
 }
 
@@ -101,9 +200,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <div className="dark min-h-screen bg-background">
-          <AppContent />
-        </div>
+        <AppContent />
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

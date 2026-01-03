@@ -229,7 +229,7 @@ export default function Staff() {
   };
 
   return (
-    <div className="min-h-screen pb-24 md:pt-20 md:pb-8">
+    <div className="min-h-screen pb-24 md:pt-20 md:pb-8 theme-admin">
       <div className="container mx-auto px-4 py-6 max-w-2xl">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6 md:hidden">
