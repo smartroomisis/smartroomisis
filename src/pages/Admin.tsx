@@ -12,7 +12,10 @@ import { CouponManager } from "@/components/CouponManager";
 import { ManagementReports } from "@/components/ManagementReports";
 import { DASMEIControl } from "@/components/DASMEIControl";
 import { MEILimitDashboard } from "@/components/MEILimitDashboard";
-import { AdminAuth, checkAdminAuth, logoutAdmin } from "@/components/AdminAuth";
+import { EnterpriseCompanies } from "@/components/EnterpriseCompanies";
+import { AdminCreditManager } from "@/components/AdminCreditManager";
+import { SubscriptionPlans } from "@/components/SubscriptionPlans";
+import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { 
@@ -24,37 +27,32 @@ import {
   LogOut,
   FileBarChart,
   FileText,
-  Target
+  Target,
+  Building2,
+  Wallet,
+  CreditCard
 } from "lucide-react";
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState("overview");
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { signOut, isAdmin } = useAuth();
 
-  useEffect(() => {
-    setIsAuthenticated(checkAdminAuth());
-  }, []);
-
-  const handleLogout = () => {
-    logoutAdmin();
-    setIsAuthenticated(false);
-  };
-
-  if (!isAuthenticated) {
-    return <AdminAuth onAuthenticated={() => setIsAuthenticated(true)} />;
+  // This page is already protected by AdminRoute, but double-check
+  if (!isAdmin) {
+    return null;
   }
 
   return (
-    <div className="min-h-screen pb-24 md:pt-20 md:pb-8">
+    <div className="min-h-screen pb-24 md:pt-20 md:pb-8 theme-admin">
       <div className="container mx-auto px-4 py-6 max-w-6xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3 md:hidden">
             <Zap className="w-6 h-6 text-primary" />
-            <h1 className="text-xl font-bold neon-text">SMART ROOM ISIS</h1>
+            <h1 className="text-xl font-bold neon-text">ADMIN PANEL</h1>
           </div>
           <div className="hidden md:block" />
-          <Button variant="outline" size="sm" onClick={handleLogout}>
+          <Button variant="outline" size="sm" onClick={signOut}>
             <LogOut className="w-4 h-4 mr-2" />
             Sair
           </Button>
@@ -64,47 +62,52 @@ export default function Admin() {
         <div className="mb-6">
           <h2 className="text-2xl font-bold">Painel Administrativo</h2>
           <p className="text-muted-foreground text-sm">
-            Métricas e monitoramento da sala
+            Métricas, usuários e configurações do sistema
           </p>
         </div>
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-7 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-10 lg:w-auto lg:inline-grid gap-1">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <LayoutDashboard className="w-4 h-4" />
-              <span className="hidden sm:inline">Visão Geral</span>
-              <span className="sm:hidden">Geral</span>
+              <span className="hidden sm:inline">Geral</span>
             </TabsTrigger>
             <TabsTrigger value="financial" className="flex items-center gap-2">
               <DollarSign className="w-4 h-4" />
               <span className="hidden sm:inline">Financeiro</span>
-              <span className="sm:hidden">$</span>
+            </TabsTrigger>
+            <TabsTrigger value="companies" className="flex items-center gap-2">
+              <Building2 className="w-4 h-4" />
+              <span className="hidden sm:inline">Empresas</span>
+            </TabsTrigger>
+            <TabsTrigger value="credits" className="flex items-center gap-2">
+              <Wallet className="w-4 h-4" />
+              <span className="hidden sm:inline">Créditos</span>
+            </TabsTrigger>
+            <TabsTrigger value="plans" className="flex items-center gap-2">
+              <CreditCard className="w-4 h-4" />
+              <span className="hidden sm:inline">Planos</span>
             </TabsTrigger>
             <TabsTrigger value="reports" className="flex items-center gap-2">
               <FileBarChart className="w-4 h-4" />
               <span className="hidden sm:inline">Relatórios</span>
-              <span className="sm:hidden">Rel</span>
             </TabsTrigger>
             <TabsTrigger value="mei" className="flex items-center gap-2">
               <Target className="w-4 h-4" />
-              <span className="hidden sm:inline">Limite MEI</span>
-              <span className="sm:hidden">MEI</span>
+              <span className="hidden sm:inline">MEI</span>
             </TabsTrigger>
             <TabsTrigger value="das" className="flex items-center gap-2">
               <FileText className="w-4 h-4" />
-              <span className="hidden sm:inline">DAS-MEI</span>
-              <span className="sm:hidden">DAS</span>
+              <span className="hidden sm:inline">DAS</span>
             </TabsTrigger>
             <TabsTrigger value="staff-payments" className="flex items-center gap-2">
               <Users className="w-4 h-4" />
               <span className="hidden sm:inline">Staff</span>
-              <span className="sm:hidden">Staff</span>
             </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <Settings className="w-4 h-4" />
               <span className="hidden sm:inline">Config</span>
-              <span className="sm:hidden">⚙️</span>
             </TabsTrigger>
           </TabsList>
 
@@ -125,6 +128,21 @@ export default function Admin() {
               <ExpenseForm />
               <ReservationCostList />
             </div>
+          </TabsContent>
+
+          {/* Enterprise Companies Tab */}
+          <TabsContent value="companies" className="space-y-6">
+            <EnterpriseCompanies />
+          </TabsContent>
+
+          {/* Credits Management Tab */}
+          <TabsContent value="credits" className="space-y-6">
+            <AdminCreditManager />
+          </TabsContent>
+
+          {/* Subscription Plans Tab */}
+          <TabsContent value="plans" className="space-y-6">
+            <SubscriptionPlans />
           </TabsContent>
 
           {/* Reports Tab */}

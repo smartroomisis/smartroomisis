@@ -1,19 +1,83 @@
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Calendar, Settings, Zap, ClipboardCheck } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { 
+  LayoutDashboard, 
+  Calendar, 
+  Settings, 
+  Zap, 
+  ClipboardCheck,
+  User,
+  Headphones,
+  DollarSign,
+  Wrench,
+  AlertTriangle,
+  Wallet
+} from "lucide-react";
 
-const navItems = [
-  { path: "/", label: "Dashboard", icon: LayoutDashboard },
-  { path: "/booking", label: "Reservar", icon: Calendar },
-  { path: "/staff", label: "Staff", icon: ClipboardCheck },
-  { path: "/admin", label: "Admin", icon: Settings },
+interface NavItem {
+  path: string;
+  label: string;
+  icon: React.ElementType;
+  roles: string[];
+}
+
+// Navigation items based on role
+const allNavItems: NavItem[] = [
+  // Client menu items
+  { path: "/", label: "Início", icon: LayoutDashboard, roles: ["user"] },
+  { path: "/booking", label: "Reservar", icon: Calendar, roles: ["user"] },
+  { path: "/profile", label: "Perfil", icon: User, roles: ["user"] },
+  { path: "/support", label: "Suporte", icon: Headphones, roles: ["user"] },
+  
+  // Staff menu items
+  { path: "/staff", label: "Limpeza", icon: ClipboardCheck, roles: ["staff"] },
+  { path: "/staff/problems", label: "Problemas", icon: AlertTriangle, roles: ["staff"] },
+  { path: "/staff/payments", label: "Pagamentos", icon: Wallet, roles: ["staff"] },
+  
+  // Admin menu items
+  { path: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["admin"] },
+  { path: "/booking", label: "Reservas", icon: Calendar, roles: ["admin"] },
+  { path: "/admin", label: "Admin", icon: Settings, roles: ["admin"] },
+  { path: "/staff", label: "Staff", icon: ClipboardCheck, roles: ["admin"] },
 ];
 
 export function Navigation() {
   const location = useLocation();
+  const { roles, isAdmin, isStaff, profile } = useAuth();
+
+  // Determine which nav items to show based on user role
+  const getNavItems = () => {
+    if (isAdmin) {
+      return allNavItems.filter(item => item.roles.includes("admin"));
+    }
+    if (isStaff) {
+      return allNavItems.filter(item => item.roles.includes("staff"));
+    }
+    // Default to user/client view
+    return allNavItems.filter(item => item.roles.includes("user"));
+  };
+
+  const navItems = getNavItems();
+
+  // Get theme class based on role
+  const getThemeClass = () => {
+    if (isAdmin || isStaff) return "theme-admin";
+    return "theme-client";
+  };
+
+  // Get brand text based on role
+  const getBrandText = () => {
+    if (isAdmin) return "ADMIN PANEL";
+    if (isStaff) return "STAFF PANEL";
+    return "SMART ROOM ISIS";
+  };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 glass-card border-t border-border/50 px-4 py-2 md:top-0 md:bottom-auto md:border-t-0 md:border-b">
+    <nav className={cn(
+      "fixed bottom-0 left-0 right-0 z-50 glass-card border-t border-border/50 px-4 py-2 md:top-0 md:bottom-auto md:border-t-0 md:border-b",
+      getThemeClass()
+    )}>
       <div className="container mx-auto flex items-center justify-between">
         {/* Logo - visible on desktop */}
         <Link
@@ -21,7 +85,7 @@ export function Navigation() {
           className="hidden md:flex items-center gap-2 text-primary font-semibold"
         >
           <Zap className="w-5 h-5" />
-          <span className="neon-text">SMART ROOM ISIS</span>
+          <span className="neon-text">{getBrandText()}</span>
         </Link>
 
         {/* Navigation Items */}
@@ -30,7 +94,7 @@ export function Navigation() {
             const isActive = location.pathname === item.path;
             return (
               <Link
-                key={item.path}
+                key={`${item.path}-${item.label}`}
                 to={item.path}
                 className={cn(
                   "flex flex-col md:flex-row items-center gap-1 md:gap-2 px-4 py-2 rounded-lg transition-all duration-200",
@@ -46,8 +110,24 @@ export function Navigation() {
           })}
         </div>
 
-        {/* Spacer for desktop */}
-        <div className="hidden md:block w-40" />
+        {/* User info for desktop - shows enterprise badge if applicable */}
+        <div className="hidden md:flex items-center gap-3">
+          {profile?.enterprise_company_id && (
+            <span className="text-xs px-2 py-1 bg-accent/20 text-accent rounded-full">
+              Corporativo
+            </span>
+          )}
+          {isAdmin && (
+            <span className="text-xs px-2 py-1 bg-primary/20 text-primary rounded-full">
+              Admin
+            </span>
+          )}
+          {isStaff && !isAdmin && (
+            <span className="text-xs px-2 py-1 bg-accent/20 text-accent rounded-full">
+              Staff
+            </span>
+          )}
+        </div>
       </div>
     </nav>
   );
