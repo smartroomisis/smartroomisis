@@ -8,8 +8,20 @@ export const N8N_WEBHOOK_TEST_URL = "https://construens.app.n8n.cloud/webhook-te
 export const AUTH_TOKEN = "SECRET_TOKEN_SJC";
 
 // Room Configuration
-export const ROOM_ID = "smart-room-isis-01";
-export const ROOM_NAME = "SMART ROOM ISIS";
+export const ROOM_ID = "smart-room-office-01";
+export const ROOM_NAME = "SMART ROOM OFFICE";
+
+// N8N Webhook Endpoints
+export const N8N_WEBHOOKS = {
+  RESERVATION: `${N8N_WEBHOOK_URL}/reserva-smart-room`,
+  DOOR_OPEN: `${N8N_WEBHOOK_URL}/sr-ac-abertura-remota`,
+  SESSION_CLOSURE: `${N8N_WEBHOOK_URL}/session-closure`,
+  ROOM_STATUS: `${N8N_WEBHOOK_URL}/room-status`,
+  CONTROL_LIGHTS: `${N8N_WEBHOOK_URL}/control-lights`,
+  CONTROL_HVAC: `${N8N_WEBHOOK_URL}/control-hvac`,
+  COFFEE: `${N8N_WEBHOOK_URL}/preparar-cafe`,
+  STAFF_AUDIT: `${N8N_WEBHOOK_URL}/staff-audit`,
+};
 
 // Pricing Configuration
 export const CAPSULE_COST = 2.50; // Cost per coffee capsule
@@ -86,6 +98,44 @@ export async function updateReservationStatus(
   } catch (err) {
     console.error('Error updating reservation status:', err);
     return { success: false };
+  }
+}
+
+// Create reservation via n8n webhook (for SR-OP Airtable validation)
+export interface CreateReservationPayload {
+  user_id: string;
+  user_email: string;
+  client_name: string;
+  room_id: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  hours: number;
+  payment_mode: "credit" | "stripe" | "invoice";
+  total_price?: number;
+  company_id?: string;
+  company_name?: string;
+}
+
+export interface CreateReservationResponse {
+  success: boolean;
+  reservation_id?: string;
+  access_code?: string;
+  error?: string;
+}
+
+export async function createReservation(
+  payload: CreateReservationPayload
+): Promise<CreateReservationResponse> {
+  try {
+    const result = await apiCall<CreateReservationResponse>(N8N_WEBHOOKS.RESERVATION, {
+      ...payload,
+      timestamp: new Date().toISOString(),
+    });
+    return result;
+  } catch (err) {
+    console.error('Failed to create reservation:', err);
+    return { success: false, error: ERROR_MESSAGES.CONNECTION };
   }
 }
 
@@ -166,13 +216,17 @@ async function apiGet<T>(endpoint: string): Promise<T> {
 export async function unlockDoor(
   userId: string, 
   userEmail?: string,
-  reservationId?: string
+  reservationId?: string,
+  clientName?: string
 ): Promise<{ success: boolean; reservationId?: string }> {
-  return apiCall(`${N8N_WEBHOOK_URL}/sensor-porta-aberta`, {
+  return apiCall(N8N_WEBHOOKS.DOOR_OPEN, {
     action: "unlock",
     room_id: ROOM_ID,
     user_id: userId,
+    user_email: userEmail,
     reservation_id: reservationId,
+    client_name: clientName,
+    timestamp: new Date().toISOString(),
   });
 }
 
@@ -181,7 +235,7 @@ export async function controlLights(
   brightness: number,
   mode: "manual" | "auto" = "manual"
 ): Promise<{ success: boolean }> {
-  return apiCall(`${N8N_WEBHOOK_URL}/control-lights`, {
+  return apiCall(N8N_WEBHOOKS.CONTROL_LIGHTS, {
     brightness,
     mode,
   });
@@ -189,7 +243,7 @@ export async function controlLights(
 
 // Meeting Mode API
 export async function activateMeetingMode(): Promise<{ success: boolean }> {
-  return apiCall(`${N8N_WEBHOOK_URL}/control-lights`, {
+  return apiCall(N8N_WEBHOOKS.CONTROL_LIGHTS, {
     scene: "meeting",
     action: "activate",
   });
@@ -200,22 +254,35 @@ export async function controlHVAC(
   targetTemp: number,
   power: "on" | "off" = "on"
 ): Promise<{ success: boolean }> {
-  return apiCall(`${N8N_WEBHOOK_URL}/control-hvac`, {
+  return apiCall(N8N_WEBHOOKS.CONTROL_HVAC, {
     target_temp: targetTemp,
     power,
   });
 }
 
-// Turn off hardware (AC and TV) - called on reservation end
+// Turn off hardware (AC and TV) and trigger session closure webhook - called on reservation end
+export async function triggerSessionClosure(
+  reservationId: string,
+  clientName?: string,
+  endTime?: string
+): Promise<{ success: boolean }> {
+  return apiCall(N8N_WEBHOOKS.SESSION_CLOSURE, {
+    room_id: ROOM_ID,
+    reservation_id: reservationId,
+    client_name: clientName,
+    end_time: endTime,
+    actions: ["turn_off_ac", "turn_off_tv", "update_airtable"],
+    new_status: "Aguardando Limpeza",
+    reason: "reservation_ended",
+    timestamp: new Date().toISOString(),
+  });
+}
+
+// Legacy function for backwards compatibility
 export async function turnOffHardware(
   reservationId: string
 ): Promise<{ success: boolean }> {
-  return apiCall(`${N8N_WEBHOOK_URL}/reservation-end`, {
-    room_id: ROOM_ID,
-    reservation_id: reservationId,
-    actions: ["turn_off_ac", "turn_off_tv"],
-    reason: "reservation_ended",
-  });
+  return triggerSessionClosure(reservationId);
 }
 
 // Room Status Interface
@@ -232,7 +299,7 @@ export interface RoomStatus {
 export async function fetchRoomStatus(): Promise<RoomStatus> {
   try {
     // Try to get status from n8n
-    const data = await apiGet<RoomStatus>(`${N8N_WEBHOOK_URL}/room-status?room_id=${ROOM_ID}`);
+    const data = await apiGet<RoomStatus>(`${N8N_WEBHOOKS.ROOM_STATUS}?room_id=${ROOM_ID}`);
     return {
       isOccupied: data.isOccupied ?? true,
       isReady: data.isReady ?? true,
@@ -259,7 +326,7 @@ export async function requestCoffee(
   reservationId?: string,
   type: "courtesy" | "extra" = "courtesy"
 ): Promise<{ success: boolean }> {
-  return apiCall(`${N8N_WEBHOOK_URL}/preparar-cafe`, {
+  return apiCall(N8N_WEBHOOKS.COFFEE, {
     service: "coffee",
     room_id: ROOM_ID,
     reservation_id: reservationId,
@@ -301,7 +368,7 @@ export async function submitStaffAudit(data: StaffAuditData): Promise<{ success:
     submitted_at: new Date().toISOString(),
   };
   
-  return apiCall(`${N8N_WEBHOOK_URL}/staff-audit`, payload as unknown as Record<string, unknown>);
+  return apiCall(N8N_WEBHOOKS.STAFF_AUDIT, payload as unknown as Record<string, unknown>);
 }
 
 // Financial API

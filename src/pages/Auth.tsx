@@ -106,7 +106,7 @@ export default function Auth() {
             <Zap className="w-8 h-8 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold neon-text">SMART ROOM ISIS</h1>
+            <h1 className="text-2xl font-bold neon-text">SMART ROOM OFFICE</h1>
             <p className="text-sm text-muted-foreground">Sala de reuniões inteligente</p>
           </div>
         </div>

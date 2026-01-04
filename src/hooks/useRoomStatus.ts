@@ -5,7 +5,7 @@ import {
   ERROR_MESSAGES, 
   validateReservation,
   updateRoomStatus,
-  turnOffHardware,
+  triggerSessionClosure,
   ROOM_ID
 } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
@@ -18,6 +18,7 @@ export function useRoomStatus() {
   const [error, setError] = useState<string | null>(null);
   const [reservationId, setReservationId] = useState<string | undefined>(undefined);
   const [reservationEndTime, setReservationEndTime] = useState<Date | null>(null);
+  const [clientName, setClientName] = useState<string | undefined>(undefined);
   const [isExpired, setIsExpired] = useState(false);
   const [noActiveReservation, setNoActiveReservation] = useState(false);
   const [reservationMessage, setReservationMessage] = useState<string | null>(null);
@@ -32,6 +33,7 @@ export function useRoomStatus() {
       const validation = await validateReservation("current_user_id");
       if (validation.valid && validation.reservation_id) {
         setReservationId(validation.reservation_id);
+        setClientName(validation.client_name);
         setNoActiveReservation(false);
         setReservationMessage(null);
         
@@ -65,28 +67,32 @@ export function useRoomStatus() {
     }
   }, []);
 
-  // Handle reservation expiry
+  // Handle reservation expiry - triggers session-closure webhook
   const handleReservationExpiry = useCallback(async () => {
     if (isExpired || !reservationId) return;
     
     setIsExpired(true);
     
-    // Turn off hardware
+    // Trigger session closure webhook (turns off hardware + updates Airtable status)
     try {
-      await turnOffHardware(reservationId);
-      console.log("Hardware turned off successfully");
+      await triggerSessionClosure(
+        reservationId,
+        clientName,
+        reservationEndTime?.toISOString()
+      );
+      console.log("Session closure triggered successfully");
     } catch (err) {
-      console.error("Failed to turn off hardware:", err);
+      console.error("Failed to trigger session closure:", err);
     }
     
-    // Update room status to "Awaiting Cleaning"
+    // Also update local room status
     try {
       await updateRoomStatus(ROOM_ID, "Aguardando Limpeza");
       console.log("Room status updated to Awaiting Cleaning");
     } catch (err) {
       console.error("Failed to update room status:", err);
     }
-  }, [isExpired, reservationId]);
+  }, [isExpired, reservationId, clientName, reservationEndTime]);
 
   useEffect(() => {
     fetchStatus(false); // Don't show error on initial load
@@ -107,6 +113,7 @@ export function useRoomStatus() {
     controlsEnabled,
     reservationId,
     reservationEndTime,
+    clientName,
     isExpired,
     noActiveReservation,
     reservationMessage,

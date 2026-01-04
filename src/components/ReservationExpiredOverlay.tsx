@@ -5,7 +5,7 @@ interface ReservationExpiredOverlayProps {
   roomName?: string;
 }
 
-export function ReservationExpiredOverlay({ roomName = "SMART ROOM ISIS" }: ReservationExpiredOverlayProps) {
+export function ReservationExpiredOverlay({ roomName = "SMART ROOM OFFICE" }: ReservationExpiredOverlayProps) {
   return (
     <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex items-center justify-center p-4">
       <GlassCard className="max-w-md w-full text-center space-y-6 py-8">
