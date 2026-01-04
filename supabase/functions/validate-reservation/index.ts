@@ -9,13 +9,15 @@ interface AirtableRecord {
   id: string;
   fields: {
     'Status'?: string;
-    'Início'?: string;
-    'Fim'?: string;
+    'Data/Hora'?: string;        // Start time
+    'Data/Hora Fim'?: string;    // End time
     'Email'?: string;
-    'Nome'?: string;
+    'Cliente'?: string;          // Client name
     'user_id'?: string;
-    'Código de Acesso'?: string;
+    'Código de Acesso (AUTO)'?: string;  // Access code
     'Sala'?: string;
+    'ID'?: string;
+    'Telefone'?: string;
     [key: string]: unknown;
   };
 }
@@ -108,6 +110,13 @@ serve(async (req) => {
 
     const data: AirtableResponse = await response.json();
     console.log(`Found ${data.records.length} total records in Reservas table`);
+    
+    // Log first record's field names for debugging
+    if (data.records.length > 0) {
+      const firstRecord = data.records[0];
+      console.log(`First record fields: ${JSON.stringify(Object.keys(firstRecord.fields))}`);
+      console.log(`First record data: ${JSON.stringify(firstRecord.fields)}`);
+    }
 
     // Find a valid reservation for the current user and time
     // Use São Paulo timezone for all comparisons
@@ -127,8 +136,8 @@ serve(async (req) => {
       }
       
       // Check time range with 10-minute tolerance
-      const startTime = fields['Início'] ? parseAirtableDate(fields['Início']) : null;
-      const endTime = fields['Fim'] ? parseAirtableDate(fields['Fim']) : null;
+      const startTime = fields['Data/Hora'] ? parseAirtableDate(fields['Data/Hora']) : null;
+      const endTime = fields['Data/Hora Fim'] ? parseAirtableDate(fields['Data/Hora Fim']) : null;
       
       if (!startTime || !endTime) {
         console.log(`Record ${record.id} skipped - missing time fields`);
@@ -171,11 +180,11 @@ serve(async (req) => {
         JSON.stringify({ 
           valid: true, 
           reservation_id: validReservation.id,
-          client_name: fields['Nome'] || 'Usuário',
-          access_code: fields['Código de Acesso'] || null,
+          client_name: fields['Cliente'] || 'Usuário',
+          access_code: fields['Código de Acesso (AUTO)'] || null,
           room_name: fields['Sala'] || 'SMART ROOM OFFICE',
-          start_time: fields['Início'],
-          end_time: fields['Fim'],
+          start_time: fields['Data/Hora'],
+          end_time: fields['Data/Hora Fim'],
           status: fields['Status'],
           message: 'Reserva válida encontrada'
         }),
@@ -190,7 +199,7 @@ serve(async (req) => {
         
         if (!isActiveStatus) return false;
         
-        const startTime = fields['Início'] ? new Date(fields['Início']) : null;
+        const startTime = fields['Data/Hora'] ? new Date(fields['Data/Hora']) : null;
         if (!startTime) return false;
         
         // Check if it's today but hasn't started yet
@@ -208,14 +217,14 @@ serve(async (req) => {
       });
 
       if (upcomingReservation) {
-        const startTime = new Date(upcomingReservation.fields['Início']!);
+        const startTime = new Date(upcomingReservation.fields['Data/Hora']!);
         return new Response(
           JSON.stringify({ 
             valid: false,
             has_upcoming: true,
-            next_start_time: upcomingReservation.fields['Início'],
-            access_code: upcomingReservation.fields['Código de Acesso'] || null,
-            client_name: upcomingReservation.fields['Nome'] || 'Usuário',
+            next_start_time: upcomingReservation.fields['Data/Hora'],
+            access_code: upcomingReservation.fields['Código de Acesso (AUTO)'] || null,
+            client_name: upcomingReservation.fields['Cliente'] || 'Usuário',
             error: `Acesso disponível apenas no horário da reserva (${startTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })})`
           }),
           { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -282,7 +291,7 @@ async function getLastReservation(req: Request): Promise<Response> {
     const now = new Date();
     const reservation = data.records.find((record) => {
       const status = record.fields['Status']?.toLowerCase();
-      const endTime = record.fields['Fim'] ? new Date(record.fields['Fim']) : null;
+      const endTime = record.fields['Data/Hora Fim'] ? new Date(record.fields['Data/Hora Fim']) : null;
       
       // Return reservations that are:
       // 1. Status "aguardando limpeza" or "concluído" or "finalizado"
@@ -298,9 +307,9 @@ async function getLastReservation(req: Request): Promise<Response> {
         JSON.stringify({
           success: true,
           reservation_id: reservation.id,
-          client_name: reservation.fields['Nome'] || 'Cliente',
+          client_name: reservation.fields['Cliente'] || 'Cliente',
           room_name: reservation.fields['Sala'] || 'SMART ROOM OFFICE',
-          end_time: reservation.fields['Fim'],
+          end_time: reservation.fields['Data/Hora Fim'],
           status: reservation.fields['Status'],
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
