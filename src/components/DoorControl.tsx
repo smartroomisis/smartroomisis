@@ -72,9 +72,9 @@ export function DoorControl({
         return;
       }
       
-      // Step 2: Unlock door via n8n with reservation ID and client name
+      // Step 2: Unlock door via n8n with reservation ID, client name and email
       setState("unlocking");
-      await unlockDoor(userId, userEmail, validation.reservation_id);
+      await unlockDoor(userId, userEmail, validation.reservation_id, validation.client_name);
       
       // Step 3: Update reservation status to "Em uso" in Airtable
       if (validation.reservation_id) {

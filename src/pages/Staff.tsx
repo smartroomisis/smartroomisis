@@ -234,7 +234,7 @@ export default function Staff() {
         {/* Header */}
         <div className="flex items-center gap-3 mb-6 md:hidden">
           <Zap className="w-6 h-6 text-primary" />
-          <h1 className="text-xl font-bold neon-text">SMART ROOM ISIS</h1>
+          <h1 className="text-xl font-bold neon-text">SMART ROOM OFFICE</h1>
         </div>
 
         {/* Page Title */}
@@ -277,7 +277,7 @@ export default function Staff() {
                 <Label htmlFor="room">Sala</Label>
                 <Input 
                   id="room" 
-                  value="SMART ROOM ISIS" 
+                  value="SMART ROOM OFFICE" 
                   disabled 
                   className="mt-1 bg-muted/50"
                 />

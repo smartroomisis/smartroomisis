@@ -70,7 +70,7 @@ export function Navigation() {
   const getBrandText = () => {
     if (isAdmin) return "ADMIN PANEL";
     if (isStaff) return "STAFF PANEL";
-    return "SMART ROOM ISIS";
+    return "SMART ROOM OFFICE";
   };
 
   return (

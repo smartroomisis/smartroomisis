@@ -64,7 +64,7 @@ export default function Dashboard() {
         {/* Header */}
         <div className="flex items-center gap-3 mb-6 md:hidden">
           <Zap className="w-6 h-6 text-primary" />
-          <h1 className="text-xl font-bold neon-text">SMART ROOM ISIS</h1>
+          <h1 className="text-xl font-bold neon-text">SMART ROOM OFFICE</h1>
         </div>
 
         {/* Enterprise Welcome Banner */}

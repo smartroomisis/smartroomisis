@@ -20,6 +20,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { createReservation, ROOM_ID } from "@/lib/api";
 
 interface SmartCheckoutProps {
   open: boolean;
@@ -60,6 +61,23 @@ export function SmartCheckout({
     setPaymentMode("credit");
 
     try {
+      // Create reservation via n8n webhook
+      const reservationResult = await createReservation({
+        user_id: profile.id,
+        user_email: profile.email,
+        client_name: profile.full_name || profile.email,
+        room_id: ROOM_ID,
+        date: reservationDetails?.date || new Date().toLocaleDateString("pt-BR"),
+        start_time: reservationDetails?.startTime || "",
+        end_time: reservationDetails?.endTime || "",
+        hours: hoursRequested,
+        payment_mode: "credit",
+      });
+
+      if (!reservationResult.success) {
+        throw new Error(reservationResult.error || "Erro ao criar reserva");
+      }
+
       // Deduct credits from wallet
       const newBalance = userCredits - hoursRequested;
       
@@ -78,6 +96,7 @@ export function SmartCheckout({
           amount: -hoursRequested,
           type: "booking_debit",
           description: `Reserva: ${reservationDetails?.date} ${reservationDetails?.startTime}-${reservationDetails?.endTime}`,
+          reservation_id: reservationResult.reservation_id,
         });
 
       if (txError) throw txError;
@@ -86,7 +105,7 @@ export function SmartCheckout({
       
       toast({
         title: "Reserva confirmada!",
-        description: `${hoursRequested}h debitadas do seu saldo.`,
+        description: `${hoursRequested}h debitadas do seu saldo. Código: ${reservationResult.access_code || "N/A"}`,
       });
 
       onSuccess("credit");
@@ -94,7 +113,7 @@ export function SmartCheckout({
       console.error("Error processing credit payment:", error);
       toast({
         title: "Erro",
-        description: "Erro ao processar pagamento.",
+        description: error instanceof Error ? error.message : "Erro ao processar pagamento.",
         variant: "destructive",
       });
     } finally {
@@ -109,6 +128,24 @@ export function SmartCheckout({
     setPaymentMode("invoice");
 
     try {
+      // Create reservation via n8n webhook
+      const reservationResult = await createReservation({
+        user_id: profile.id,
+        user_email: profile.email,
+        client_name: profile.full_name || profile.email,
+        room_id: ROOM_ID,
+        date: reservationDetails?.date || new Date().toLocaleDateString("pt-BR"),
+        start_time: reservationDetails?.startTime || "",
+        end_time: reservationDetails?.endTime || "",
+        hours: hoursRequested,
+        payment_mode: "invoice",
+        company_id: profile.enterprise_company_id || undefined,
+      });
+
+      if (!reservationResult.success) {
+        throw new Error(reservationResult.error || "Erro ao criar reserva");
+      }
+
       // Log usage for corporate billing
       const { error } = await supabase
         .from("enterprise_usage_logs")
@@ -118,13 +155,14 @@ export function SmartCheckout({
           hours_used: hoursRequested,
           booking_date: reservationDetails?.date || new Date().toISOString().split("T")[0],
           description: `Reserva: ${reservationDetails?.startTime}-${reservationDetails?.endTime}`,
+          reservation_id: reservationResult.reservation_id,
         });
 
       if (error) throw error;
 
       toast({
         title: "Reserva confirmada!",
-        description: "Uso registrado para faturamento corporativo.",
+        description: `Uso registrado para faturamento corporativo. Código: ${reservationResult.access_code || "N/A"}`,
       });
 
       onSuccess("invoice");
@@ -132,7 +170,7 @@ export function SmartCheckout({
       console.error("Error logging enterprise usage:", error);
       toast({
         title: "Erro",
-        description: "Erro ao registrar uso.",
+        description: error instanceof Error ? error.message : "Erro ao registrar uso.",
         variant: "destructive",
       });
     } finally {
@@ -141,17 +179,37 @@ export function SmartCheckout({
   };
 
   const handleStripePayment = async () => {
+    if (!profile) return;
+    
     setLoading(true);
     setPaymentMode("stripe");
 
     try {
+      // Create reservation via n8n webhook
+      const reservationResult = await createReservation({
+        user_id: profile.id,
+        user_email: profile.email,
+        client_name: profile.full_name || profile.email,
+        room_id: ROOM_ID,
+        date: reservationDetails?.date || new Date().toLocaleDateString("pt-BR"),
+        start_time: reservationDetails?.startTime || "",
+        end_time: reservationDetails?.endTime || "",
+        hours: hoursRequested,
+        payment_mode: "stripe",
+        total_price: totalPrice,
+      });
+
+      if (!reservationResult.success) {
+        throw new Error(reservationResult.error || "Erro ao criar reserva");
+      }
+
       // TODO: Integrate with Stripe Checkout
       // For now, simulate success
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
       toast({
         title: "Pagamento processado!",
-        description: `Cobrança de R$ ${totalPrice.toFixed(2)} realizada.`,
+        description: `Cobrança de R$ ${totalPrice.toFixed(2)} realizada. Código: ${reservationResult.access_code || "N/A"}`,
       });
 
       onSuccess("stripe");
@@ -159,7 +217,7 @@ export function SmartCheckout({
       console.error("Error processing Stripe payment:", error);
       toast({
         title: "Erro",
-        description: "Erro ao processar pagamento.",
+        description: error instanceof Error ? error.message : "Erro ao processar pagamento.",
         variant: "destructive",
       });
     } finally {
