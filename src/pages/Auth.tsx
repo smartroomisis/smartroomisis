@@ -17,16 +17,49 @@ export default function Auth() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // Function to get redirect path based on user roles
+  const getRedirectPath = async (userId: string): Promise<string> => {
+    try {
+      const { data: roles, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId);
+
+      if (error) {
+        console.error("Error fetching roles:", error);
+        return "/"; // Default to client dashboard
+      }
+
+      const roleNames = roles?.map((r) => r.role) || [];
+      
+      if (roleNames.includes("admin")) {
+        return "/admin";
+      }
+      if (roleNames.includes("staff")) {
+        return "/staff";
+      }
+      return "/"; // Default: client dashboard
+    } catch (error) {
+      console.error("Error in getRedirectPath:", error);
+      return "/";
+    }
+  };
+
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
-        navigate("/", { replace: true });
+        // Use setTimeout to avoid deadlock with Supabase calls
+        setTimeout(async () => {
+          const path = await getRedirectPath(session.user.id);
+          navigate(path, { replace: true });
+        }, 0);
       }
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
-        navigate("/", { replace: true });
+        const path = await getRedirectPath(session.user.id);
+        navigate(path, { replace: true });
       }
     });
 
