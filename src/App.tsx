@@ -14,6 +14,8 @@ import Support from "./pages/Support";
 import StaffProblems from "./pages/StaffProblems";
 import StaffPayments from "./pages/StaffPayments";
 import Auth from "./pages/Auth";
+import AuthStaff from "./pages/AuthStaff";
+import AuthAdmin from "./pages/AuthAdmin";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -108,7 +110,10 @@ function AppContent() {
     <div className={cn("min-h-screen bg-background", user && getThemeClass())}>
       {user && <Navigation />}
       <Routes>
+        {/* Auth Routes - separate for each role */}
         <Route path="/auth" element={user ? <Navigate to="/" replace /> : <Auth />} />
+        <Route path="/auth/staff" element={<AuthStaff />} />
+        <Route path="/auth/admin" element={<AuthAdmin />} />
         
         {/* Client Routes */}
         <Route
