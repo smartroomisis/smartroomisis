@@ -11,17 +11,23 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Settings, DollarSign, Save, RotateCcw, User, Mail } from "lucide-react";
+import { Settings, DollarSign, Clock, Percent, Save, RotateCcw, User, Mail } from "lucide-react";
 
 export interface SystemConfig {
+  hourlyRate: number;
   coffeePricePerCapsule: number;
+  minimumHours: number;
+  progressiveDiscount: number;
   restartFee: number;
   transportAllowance: number;
   alertEmail: string;
 }
 
 const DEFAULT_CONFIG: SystemConfig = {
+  hourlyRate: 85,
   coffeePricePerCapsule: 2.50,
+  minimumHours: 1,
+  progressiveDiscount: 10,
   restartFee: 30,
   transportAllowance: 10,
   alertEmail: '',
@@ -97,6 +103,25 @@ export function SystemSettings() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
+        {/* Hourly Rate */}
+        <div className="space-y-2">
+          <Label className="flex items-center gap-2">
+            <DollarSign className="w-4 h-4 text-primary" />
+            Valor da Hora Base (R$)
+          </Label>
+          <Input
+            type="number"
+            step="0.01"
+            min="0"
+            value={config.hourlyRate}
+            onChange={(e) => handleChange("hourlyRate", parseFloat(e.target.value) || 0)}
+            className="font-mono"
+          />
+          <p className="text-xs text-muted-foreground">
+            Preço base para a primeira hora de reserva
+          </p>
+        </div>
+
         {/* Coffee Price */}
         <div className="space-y-2">
           <Label className="flex items-center gap-2">
@@ -113,6 +138,51 @@ export function SystemSettings() {
           />
           <p className="text-xs text-muted-foreground">
             Preço por cápsula extra consumida
+          </p>
+        </div>
+
+        {/* Minimum Hours */}
+        <div className="space-y-2">
+          <Label className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-accent" />
+            Tempo Mínimo de Reserva
+          </Label>
+          <Select
+            value={config.minimumHours.toString()}
+            onValueChange={(v) => handleChange("minimumHours", parseInt(v))}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1">1 hora</SelectItem>
+              <SelectItem value="2">2 horas</SelectItem>
+              <SelectItem value="3">3 horas</SelectItem>
+              <SelectItem value="4">4 horas</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Mínimo de horas por reserva
+          </p>
+        </div>
+
+        {/* Progressive Discount */}
+        <div className="space-y-2">
+          <Label className="flex items-center gap-2">
+            <Percent className="w-4 h-4 text-success" />
+            Desconto Progressivo (%)
+          </Label>
+          <Input
+            type="number"
+            step="1"
+            min="0"
+            max="50"
+            value={config.progressiveDiscount}
+            onChange={(e) => handleChange("progressiveDiscount", parseFloat(e.target.value) || 0)}
+            className="font-mono"
+          />
+          <p className="text-xs text-muted-foreground">
+            Desconto aplicado a partir da 2ª hora
           </p>
         </div>
 
@@ -155,7 +225,7 @@ export function SystemSettings() {
         </div>
 
         {/* Alert Email */}
-        <div className="space-y-2">
+        <div className="space-y-2 md:col-span-2">
           <Label className="flex items-center gap-2">
             <Mail className="w-4 h-4 text-primary" />
             E-mail para Alertas Fiscais
@@ -197,6 +267,39 @@ export function SystemSettings() {
         </div>
       </div>
 
+      {/* Preview Section */}
+      <div className="mt-6 p-4 rounded-lg bg-secondary/50 border border-border">
+        <h4 className="text-sm font-medium mb-3">Prévia de Cálculo (3 horas)</h4>
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <span className="text-muted-foreground">1ª hora:</span>
+            <span className="ml-2 font-mono">R$ {config.hourlyRate.toFixed(2)}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">2ª hora:</span>
+            <span className="ml-2 font-mono">
+              R$ {(config.hourlyRate * (1 - config.progressiveDiscount / 100)).toFixed(2)}
+            </span>
+            <span className="text-success text-xs ml-1">(-{config.progressiveDiscount}%)</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">3ª hora:</span>
+            <span className="ml-2 font-mono">
+              R$ {(config.hourlyRate * (1 - config.progressiveDiscount / 100)).toFixed(2)}
+            </span>
+            <span className="text-success text-xs ml-1">(-{config.progressiveDiscount}%)</span>
+          </div>
+          <div className="col-span-2 pt-2 border-t border-border">
+            <span className="font-medium">Total:</span>
+            <span className="ml-2 font-mono text-primary font-bold">
+              R$ {(
+                config.hourlyRate + 
+                (config.hourlyRate * (1 - config.progressiveDiscount / 100)) * 2
+              ).toFixed(2)}
+            </span>
+          </div>
+        </div>
+      </div>
     </GlassCard>
   );
 }

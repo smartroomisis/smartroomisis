@@ -7,10 +7,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { submitStaffAudit, updateRoomStatus, getLastReservation, ROOM_ID } from "@/lib/api";
+import { submitStaffAudit, updateRoomStatus, getLastReservation, STAFF_LIST, ROOM_ID } from "@/lib/api";
 import { PhotoUpload } from "@/components/PhotoUpload";
-import { useStaffList } from "@/hooks/useStaffList";
-import { useAuth } from "@/hooks/useAuth";
 import { 
   Zap, 
   ClipboardCheck, 
@@ -25,8 +23,7 @@ import {
   Armchair,
   User,
   RefreshCw,
-  AlertCircle,
-  LogOut
+  AlertCircle
 } from "lucide-react";
 
 interface ChecklistItem {
@@ -57,8 +54,6 @@ const initialOrganizationChecklist: ChecklistItem[] = [
 ];
 
 export default function Staff() {
-  const { signOut } = useAuth();
-  const { staffList, loading: staffLoading } = useStaffList();
   const [staffId, setStaffId] = useState("");
   const [reservationId, setReservationId] = useState("");
   const [clientName, setClientName] = useState("");
@@ -72,7 +67,7 @@ export default function Staff() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  const selectedStaff = staffList.find(s => s.id === staffId);
+  const selectedStaff = STAFF_LIST.find(s => s.id === staffId);
 
   // Auto-fetch last reservation on mount
   useEffect(() => {
@@ -237,16 +232,9 @@ export default function Staff() {
     <div className="min-h-screen pb-24 md:pt-20 md:pb-8 theme-admin">
       <div className="container mx-auto px-4 py-6 max-w-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3 md:hidden">
-            <Zap className="w-6 h-6 text-primary" />
-            <h1 className="text-xl font-bold neon-text">SMART ROOM OFFICE</h1>
-          </div>
-          <div className="hidden md:block" />
-          <Button variant="outline" size="sm" onClick={signOut}>
-            <LogOut className="w-4 h-4 mr-2" />
-            Sair
-          </Button>
+        <div className="flex items-center gap-3 mb-6 md:hidden">
+          <Zap className="w-6 h-6 text-primary" />
+          <h1 className="text-xl font-bold neon-text">SMART ROOM OFFICE</h1>
         </div>
 
         {/* Page Title */}
@@ -271,12 +259,12 @@ export default function Staff() {
             <div className="space-y-3">
               <div>
                 <Label htmlFor="staff">Colaborador *</Label>
-                <Select value={staffId} onValueChange={setStaffId} disabled={staffLoading}>
+                <Select value={staffId} onValueChange={setStaffId}>
                   <SelectTrigger className="mt-1">
-                    <SelectValue placeholder={staffLoading ? "Carregando..." : "Selecione o colaborador"} />
+                    <SelectValue placeholder="Selecione o colaborador" />
                   </SelectTrigger>
                   <SelectContent>
-                    {staffList.map((staff) => (
+                    {STAFF_LIST.map((staff) => (
                       <SelectItem key={staff.id} value={staff.id}>
                         {staff.name}
                       </SelectItem>

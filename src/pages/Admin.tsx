@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AdminMetrics } from "@/components/AdminMetrics";
 import { AdminCharts } from "@/components/AdminCharts";
 import { AccessLogs } from "@/components/AccessLogs";
@@ -14,8 +14,7 @@ import { DASMEIControl } from "@/components/DASMEIControl";
 import { MEILimitDashboard } from "@/components/MEILimitDashboard";
 import { EnterpriseCompanies } from "@/components/EnterpriseCompanies";
 import { AdminCreditManager } from "@/components/AdminCreditManager";
-import { SubscriptionPlansEditor } from "@/components/SubscriptionPlansEditor";
-import { AdminReservationsCalendar } from "@/components/AdminReservationsCalendar";
+import { SubscriptionPlans } from "@/components/SubscriptionPlans";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -31,8 +30,7 @@ import {
   Target,
   Building2,
   Wallet,
-  CreditCard,
-  CalendarDays
+  CreditCard
 } from "lucide-react";
 
 export default function Admin() {
@@ -70,14 +68,10 @@ export default function Admin() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-11 lg:w-auto lg:inline-grid gap-1">
+          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-10 lg:w-auto lg:inline-grid gap-1">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <LayoutDashboard className="w-4 h-4" />
               <span className="hidden sm:inline">Geral</span>
-            </TabsTrigger>
-            <TabsTrigger value="reservations" className="flex items-center gap-2">
-              <CalendarDays className="w-4 h-4" />
-              <span className="hidden sm:inline">Reservas</span>
             </TabsTrigger>
             <TabsTrigger value="financial" className="flex items-center gap-2">
               <DollarSign className="w-4 h-4" />
@@ -127,11 +121,6 @@ export default function Admin() {
             </div>
           </TabsContent>
 
-          {/* Reservations Calendar Tab */}
-          <TabsContent value="reservations" className="space-y-6">
-            <AdminReservationsCalendar />
-          </TabsContent>
-
           {/* Financial Tab */}
           <TabsContent value="financial" className="space-y-6">
             <FinancialDashboard />
@@ -153,7 +142,7 @@ export default function Admin() {
 
           {/* Subscription Plans Tab */}
           <TabsContent value="plans" className="space-y-6">
-            <SubscriptionPlansEditor />
+            <SubscriptionPlans />
           </TabsContent>
 
           {/* Reports Tab */}
