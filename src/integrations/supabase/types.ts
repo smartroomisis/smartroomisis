@@ -181,6 +181,74 @@ export type Database = {
         }
         Relationships: []
       }
+      reservations: {
+        Row: {
+          access_code: string | null
+          client_email: string | null
+          client_name: string
+          company_id: string | null
+          created_at: string
+          date: string
+          end_time: string
+          hours: number
+          id: string
+          notes: string | null
+          payment_mode: string
+          room_id: string
+          start_time: string
+          status: string
+          total_price: number
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          access_code?: string | null
+          client_email?: string | null
+          client_name: string
+          company_id?: string | null
+          created_at?: string
+          date: string
+          end_time: string
+          hours?: number
+          id?: string
+          notes?: string | null
+          payment_mode?: string
+          room_id?: string
+          start_time: string
+          status?: string
+          total_price?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          access_code?: string | null
+          client_email?: string | null
+          client_name?: string
+          company_id?: string | null
+          created_at?: string
+          date?: string
+          end_time?: string
+          hours?: number
+          id?: string
+          notes?: string | null
+          payment_mode?: string
+          room_id?: string
+          start_time?: string
+          status?: string
+          total_price?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "enterprise_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscription_plans: {
         Row: {
           created_at: string

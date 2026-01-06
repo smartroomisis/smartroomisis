@@ -4,12 +4,12 @@ import { GlassCard } from "@/components/GlassCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { CalendarDays, Loader2, CheckCircle, Ticket, X } from "lucide-react";
+import { CalendarDays, CheckCircle, Ticket, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { getSystemConfig } from "@/components/SystemSettings";
 import { validateCoupon, useCoupon } from "@/components/CouponManager";
 import { SmartCheckout } from "@/components/SmartCheckout";
 import { useAuth } from "@/hooks/useAuth";
+import { usePricingConfig } from "@/hooks/usePricingConfig";
 
 const timeSlots = [
   { time: "08:00", available: true },
@@ -74,7 +74,7 @@ export function BookingCalendar() {
   const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(null);
 
   const { profile } = useAuth();
-  const config = getSystemConfig();
+  const { config } = usePricingConfig();
 
   const toggleSlot = (time: string) => {
     setSelectedSlots((prev) =>
