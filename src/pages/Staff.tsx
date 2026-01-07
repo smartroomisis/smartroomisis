@@ -7,7 +7,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { submitStaffAudit, updateRoomStatus, getLastReservation, STAFF_LIST, ROOM_ID } from "@/lib/api";
+import { submitStaffAudit, updateRoomStatus, getLastReservation, ROOM_ID } from "@/lib/api";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { PhotoUpload } from "@/components/PhotoUpload";
 import { 
   Zap, 
@@ -54,7 +56,7 @@ const initialOrganizationChecklist: ChecklistItem[] = [
 ];
 
 export default function Staff() {
-  const [staffId, setStaffId] = useState("");
+  const { user, profile } = useAuth();
   const [reservationId, setReservationId] = useState("");
   const [clientName, setClientName] = useState("");
   const [isLoadingReservation, setIsLoadingReservation] = useState(true);
@@ -67,7 +69,8 @@ export default function Staff() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  const selectedStaff = STAFF_LIST.find(s => s.id === staffId);
+  const staffId = user?.id || "";
+  const staffName = profile?.full_name || profile?.email || "Staff";
 
   // Auto-fetch last reservation on mount
   useEffect(() => {
@@ -119,8 +122,8 @@ export default function Staff() {
   const handleSubmit = async () => {
     if (!staffId) {
       toast({
-        title: "Campo obrigatório",
-        description: "Selecione o colaborador.",
+        title: "Erro de autenticação",
+        description: "Faça login novamente.",
         variant: "destructive",
       });
       return;
@@ -179,7 +182,7 @@ export default function Staff() {
         room_id: ROOM_ID,
         reservation_id: reservationId,
         staff_id: staffId,
-        staff_name: selectedStaff?.name || "",
+        staff_name: staffName,
         coffee_capsules_remaining: coffeeCapsulesRemaining,
         cleaning_checklist: cleaningChecklist.reduce((acc, item) => {
           acc[item.id] = item.checked;
@@ -205,7 +208,6 @@ export default function Staff() {
       // Reset form after success
       setTimeout(() => {
         setIsSuccess(false);
-        setStaffId("");
         setReservationId("");
         setClientName("");
         setCoffeeCapsulesRemaining(20);
@@ -258,19 +260,13 @@ export default function Staff() {
             
             <div className="space-y-3">
               <div>
-                <Label htmlFor="staff">Colaborador *</Label>
-                <Select value={staffId} onValueChange={setStaffId}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Selecione o colaborador" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STAFF_LIST.map((staff) => (
-                      <SelectItem key={staff.id} value={staff.id}>
-                        {staff.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="staff">Colaborador</Label>
+                <Input 
+                  id="staff" 
+                  value={staffName} 
+                  disabled 
+                  className="mt-1 bg-muted/50"
+                />
               </div>
 
               <div>
