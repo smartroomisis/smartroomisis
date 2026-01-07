@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { AdminMetrics } from "@/components/AdminMetrics";
 import { AdminCharts } from "@/components/AdminCharts";
 import { AccessLogs } from "@/components/AccessLogs";
@@ -7,6 +7,7 @@ import { FinancialDashboard } from "@/components/FinancialDashboard";
 import { ExpenseForm } from "@/components/ExpenseForm";
 import { ReservationCostList } from "@/components/ReservationCostList";
 import { StaffPayments } from "@/components/StaffPayments";
+import { StaffManagement } from "@/components/StaffManagement";
 import { SystemSettings } from "@/components/SystemSettings";
 import { CouponManager } from "@/components/CouponManager";
 import { ManagementReports } from "@/components/ManagementReports";
@@ -14,7 +15,8 @@ import { DASMEIControl } from "@/components/DASMEIControl";
 import { MEILimitDashboard } from "@/components/MEILimitDashboard";
 import { EnterpriseCompanies } from "@/components/EnterpriseCompanies";
 import { AdminCreditManager } from "@/components/AdminCreditManager";
-import { SubscriptionPlans } from "@/components/SubscriptionPlans";
+import { SubscriptionPlansEditor } from "@/components/SubscriptionPlansEditor";
+import { AdminReservationCalendar } from "@/components/AdminReservationCalendar";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -30,11 +32,12 @@ import {
   Target,
   Building2,
   Wallet,
-  CreditCard
+  CreditCard,
+  Calendar
 } from "lucide-react";
 
 export default function Admin() {
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("reservations");
   const { signOut, isAdmin } = useAuth();
 
   // This page is already protected by AdminRoute, but double-check
@@ -62,16 +65,16 @@ export default function Admin() {
         <div className="mb-6">
           <h2 className="text-2xl font-bold">Painel Administrativo</h2>
           <p className="text-muted-foreground text-sm">
-            Métricas, usuários e configurações do sistema
+            Reservas, financeiro e configurações do sistema
           </p>
         </div>
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-4 lg:grid-cols-10 lg:w-auto lg:inline-grid gap-1">
-            <TabsTrigger value="overview" className="flex items-center gap-2">
-              <LayoutDashboard className="w-4 h-4" />
-              <span className="hidden sm:inline">Geral</span>
+            <TabsTrigger value="reservations" className="flex items-center gap-2">
+              <Calendar className="w-4 h-4" />
+              <span className="hidden sm:inline">Reservas</span>
             </TabsTrigger>
             <TabsTrigger value="financial" className="flex items-center gap-2">
               <DollarSign className="w-4 h-4" />
@@ -89,6 +92,10 @@ export default function Admin() {
               <CreditCard className="w-4 h-4" />
               <span className="hidden sm:inline">Planos</span>
             </TabsTrigger>
+            <TabsTrigger value="staff" className="flex items-center gap-2">
+              <Users className="w-4 h-4" />
+              <span className="hidden sm:inline">Colaboradores</span>
+            </TabsTrigger>
             <TabsTrigger value="reports" className="flex items-center gap-2">
               <FileBarChart className="w-4 h-4" />
               <span className="hidden sm:inline">Relatórios</span>
@@ -101,24 +108,15 @@ export default function Admin() {
               <FileText className="w-4 h-4" />
               <span className="hidden sm:inline">DAS</span>
             </TabsTrigger>
-            <TabsTrigger value="staff-payments" className="flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              <span className="hidden sm:inline">Staff</span>
-            </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <Settings className="w-4 h-4" />
               <span className="hidden sm:inline">Config</span>
             </TabsTrigger>
           </TabsList>
 
-          {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6">
-            <AdminMetrics />
-            <AdminCharts />
-            <div className="grid gap-6 md:grid-cols-2">
-              <AccessLogs />
-              <DeviceStatus />
-            </div>
+          {/* Reservations Calendar Tab */}
+          <TabsContent value="reservations" className="space-y-6">
+            <AdminReservationCalendar />
           </TabsContent>
 
           {/* Financial Tab */}
@@ -140,9 +138,15 @@ export default function Admin() {
             <AdminCreditManager />
           </TabsContent>
 
-          {/* Subscription Plans Tab */}
+          {/* Subscription Plans Tab - with editable pricing */}
           <TabsContent value="plans" className="space-y-6">
-            <SubscriptionPlans />
+            <SubscriptionPlansEditor />
+          </TabsContent>
+
+          {/* Staff Management Tab */}
+          <TabsContent value="staff" className="space-y-6">
+            <StaffManagement />
+            <StaffPayments />
           </TabsContent>
 
           {/* Reports Tab */}
@@ -160,12 +164,7 @@ export default function Admin() {
             <DASMEIControl />
           </TabsContent>
 
-          {/* Staff Payments Tab */}
-          <TabsContent value="staff-payments" className="space-y-6">
-            <StaffPayments />
-          </TabsContent>
-
-          {/* Settings Tab */}
+          {/* Settings Tab - without pricing (moved to Plans) */}
           <TabsContent value="settings" className="space-y-6">
             <SystemSettings />
             <CouponManager />

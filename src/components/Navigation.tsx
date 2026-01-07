@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
 import { 
   LayoutDashboard, 
   Calendar, 
@@ -9,10 +10,9 @@ import {
   ClipboardCheck,
   User,
   Headphones,
-  DollarSign,
-  Wrench,
   AlertTriangle,
-  Wallet
+  Wallet,
+  LogOut
 } from "lucide-react";
 
 interface NavItem {
@@ -36,15 +36,12 @@ const allNavItems: NavItem[] = [
   { path: "/staff/payments", label: "Pagamentos", icon: Wallet, roles: ["staff"] },
   
   // Admin menu items
-  { path: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["admin"] },
-  { path: "/booking", label: "Reservas", icon: Calendar, roles: ["admin"] },
-  { path: "/admin", label: "Admin", icon: Settings, roles: ["admin"] },
-  { path: "/staff", label: "Staff", icon: ClipboardCheck, roles: ["admin"] },
+  { path: "/admin", label: "Painel", icon: Settings, roles: ["admin"] },
 ];
 
 export function Navigation() {
   const location = useLocation();
-  const { roles, isAdmin, isStaff, profile } = useAuth();
+  const { roles, isAdmin, isStaff, profile, signOut } = useAuth();
 
   // Determine which nav items to show based on user role
   const getNavItems = () => {
@@ -81,7 +78,7 @@ export function Navigation() {
       <div className="container mx-auto flex items-center justify-between">
         {/* Logo - visible on desktop */}
         <Link
-          to="/"
+          to={isAdmin ? "/admin" : isStaff ? "/staff" : "/"}
           className="hidden md:flex items-center gap-2 text-primary font-semibold"
         >
           <Zap className="w-5 h-5" />
@@ -108,9 +105,18 @@ export function Navigation() {
               </Link>
             );
           })}
+
+          {/* Logout button for mobile */}
+          <button
+            onClick={signOut}
+            className="flex flex-col md:hidden items-center gap-1 px-4 py-2 rounded-lg transition-all duration-200 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+          >
+            <LogOut className="w-5 h-5" />
+            <span className="text-xs font-medium">Sair</span>
+          </button>
         </div>
 
-        {/* User info for desktop - shows enterprise badge if applicable */}
+        {/* User info and logout for desktop */}
         <div className="hidden md:flex items-center gap-3">
           {profile?.enterprise_company_id && (
             <span className="text-xs px-2 py-1 bg-accent/20 text-accent rounded-full">
@@ -127,6 +133,10 @@ export function Navigation() {
               Staff
             </span>
           )}
+          <Button variant="ghost" size="sm" onClick={signOut} className="text-muted-foreground hover:text-destructive">
+            <LogOut className="w-4 h-4 mr-1" />
+            Sair
+          </Button>
         </div>
       </div>
     </nav>
