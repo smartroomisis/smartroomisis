@@ -46,7 +46,7 @@ export default function Admin() {
   }
 
   return (
-    <div className="min-h-screen pb-24 md:pt-20 md:pb-8 theme-admin">
+    <div className="min-h-screen pb-24 md:pb-8 theme-admin">
       <div className="container mx-auto px-4 py-6 max-w-6xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
