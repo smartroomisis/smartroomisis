@@ -70,7 +70,7 @@ export default function Staff() {
   const [isSuccess, setIsSuccess] = useState(false);
 
   const staffId = user?.id || "";
-  const staffName = profile?.full_name || profile?.email || "Staff";
+  const staffName = profile?.full_name || "Staff";
 
   // Auto-fetch last reservation on mount
   useEffect(() => {
