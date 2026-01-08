@@ -115,12 +115,12 @@ function AppContent() {
         <Route path="/auth/staff" element={<AuthStaff />} />
         <Route path="/auth/admin" element={<AuthAdmin />} />
         
-        {/* Client Routes */}
+        {/* Home Route - redirect based on role */}
         <Route
           path="/"
           element={
             <ProtectedRoute>
-              <Dashboard />
+              {isAdmin ? <Navigate to="/admin" replace /> : isStaff ? <Navigate to="/staff" replace /> : <Dashboard />}
             </ProtectedRoute>
           }
         />
