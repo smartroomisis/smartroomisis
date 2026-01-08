@@ -15,7 +15,7 @@ import {
   Phone, 
   Briefcase,
   CheckCircle,
-  XCircle
+  Pencil
 } from "lucide-react";
 
 interface StaffMember {
@@ -30,13 +30,19 @@ export function StaffManagement() {
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   
   // Form state
   const [newStaffName, setNewStaffName] = useState("");
   const [newStaffEmail, setNewStaffEmail] = useState("");
   const [newStaffPhone, setNewStaffPhone] = useState("");
   const [newStaffRole, setNewStaffRole] = useState("Colaborador");
+
+  // Edit form state
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
 
   useEffect(() => {
     fetchStaffMembers();
@@ -174,6 +180,58 @@ export function StaffManagement() {
     }
   };
 
+  const handleEditStaff = (staff: StaffMember) => {
+    setEditingStaff(staff);
+    setEditName(staff.full_name || "");
+    setEditPhone(staff.phone || "");
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingStaff) return;
+
+    if (!editName.trim()) {
+      toast({
+        title: "Campo obrigatório",
+        description: "O nome é obrigatório.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ 
+          full_name: editName.trim(),
+          phone: editPhone.trim() || null
+        })
+        .eq("id", editingStaff.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso",
+        description: "Colaborador atualizado com sucesso.",
+      });
+
+      setIsEditDialogOpen(false);
+      setEditingStaff(null);
+      fetchStaffMembers();
+    } catch (error) {
+      console.error("Error updating staff:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível atualizar o colaborador.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('pt-BR', {
       day: '2-digit',
@@ -254,6 +312,14 @@ export function StaffManagement() {
                     </span>
                   </div>
                 </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleEditStaff(staff)}
+                  className="shrink-0"
+                >
+                  <Pencil className="w-4 h-4" />
+                </Button>
               </div>
             </GlassCard>
           ))}
@@ -337,6 +403,73 @@ export function StaffManagement() {
                 <>
                   <CheckCircle className="w-4 h-4 mr-2" />
                   Adicionar
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Staff Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="w-5 h-5 text-primary" />
+              Editar Colaborador
+            </DialogTitle>
+            <DialogDescription>
+              Atualize as informações do colaborador.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-email">E-mail</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={editingStaff?.email || ""}
+                disabled
+                className="bg-muted"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Nome Completo *</Label>
+              <Input
+                id="edit-name"
+                placeholder="Nome do colaborador"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-phone">Telefone</Label>
+              <Input
+                id="edit-phone"
+                placeholder="(00) 00000-0000"
+                value={editPhone}
+                onChange={(e) => setEditPhone(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveEdit} disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  A guardar...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Guardar
                 </>
               )}
             </Button>
