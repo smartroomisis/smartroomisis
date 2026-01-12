@@ -142,6 +142,84 @@ export type Database = {
           },
         ]
       }
+      expenses: {
+        Row: {
+          amount: number
+          approved_by: string | null
+          category: string
+          created_at: string
+          created_by: string | null
+          description: string
+          expense_date: string
+          id: string
+          invoice_number: string | null
+          notes: string | null
+          payment_date: string | null
+          payment_proof_url: string | null
+          receipt_url: string | null
+          reference_month: string | null
+          status: string
+          updated_at: string
+          vendor_document: string | null
+          vendor_name: string | null
+        }
+        Insert: {
+          amount: number
+          approved_by?: string | null
+          category: string
+          created_at?: string
+          created_by?: string | null
+          description: string
+          expense_date?: string
+          id?: string
+          invoice_number?: string | null
+          notes?: string | null
+          payment_date?: string | null
+          payment_proof_url?: string | null
+          receipt_url?: string | null
+          reference_month?: string | null
+          status?: string
+          updated_at?: string
+          vendor_document?: string | null
+          vendor_name?: string | null
+        }
+        Update: {
+          amount?: number
+          approved_by?: string | null
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          expense_date?: string
+          id?: string
+          invoice_number?: string | null
+          notes?: string | null
+          payment_date?: string | null
+          payment_proof_url?: string | null
+          receipt_url?: string | null
+          reference_month?: string | null
+          status?: string
+          updated_at?: string
+          vendor_document?: string | null
+          vendor_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -245,6 +323,184 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "enterprise_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_audits: {
+        Row: {
+          cleaning_checklist: Json
+          coffee_capsules_remaining: number | null
+          coffee_capsules_used: number | null
+          completed_at: string | null
+          created_at: string
+          damage_description: string | null
+          has_damage: boolean | null
+          id: string
+          notes: string | null
+          organization_checklist: Json
+          photo_urls: string[] | null
+          reservation_id: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          room_id: string
+          staff_id: string | null
+          status: string
+        }
+        Insert: {
+          cleaning_checklist?: Json
+          coffee_capsules_remaining?: number | null
+          coffee_capsules_used?: number | null
+          completed_at?: string | null
+          created_at?: string
+          damage_description?: string | null
+          has_damage?: boolean | null
+          id?: string
+          notes?: string | null
+          organization_checklist?: Json
+          photo_urls?: string[] | null
+          reservation_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          room_id?: string
+          staff_id?: string | null
+          status?: string
+        }
+        Update: {
+          cleaning_checklist?: Json
+          coffee_capsules_remaining?: number | null
+          coffee_capsules_used?: number | null
+          completed_at?: string | null
+          created_at?: string
+          damage_description?: string | null
+          has_damage?: boolean | null
+          id?: string
+          notes?: string | null
+          organization_checklist?: Json
+          photo_urls?: string[] | null
+          reservation_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          room_id?: string
+          staff_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_audits_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_audits_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_audits_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_payments: {
+        Row: {
+          amount: number
+          approved_at: string | null
+          approved_by: string | null
+          audit_id: string | null
+          created_at: string
+          description: string | null
+          fee_type: string
+          id: string
+          paid_at: string | null
+          paid_by: string | null
+          payment_date: string | null
+          payment_method: string | null
+          payment_proof_url: string | null
+          reservation_id: string | null
+          staff_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          approved_at?: string | null
+          approved_by?: string | null
+          audit_id?: string | null
+          created_at?: string
+          description?: string | null
+          fee_type: string
+          id?: string
+          paid_at?: string | null
+          paid_by?: string | null
+          payment_date?: string | null
+          payment_method?: string | null
+          payment_proof_url?: string | null
+          reservation_id?: string | null
+          staff_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          audit_id?: string | null
+          created_at?: string
+          description?: string | null
+          fee_type?: string
+          id?: string
+          paid_at?: string | null
+          paid_by?: string | null
+          payment_date?: string | null
+          payment_method?: string | null
+          payment_proof_url?: string | null
+          reservation_id?: string | null
+          staff_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_payments_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_payments_audit_id_fkey"
+            columns: ["audit_id"]
+            isOneToOne: false
+            referencedRelation: "staff_audits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_payments_paid_by_fkey"
+            columns: ["paid_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_payments_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_payments_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

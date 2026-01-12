@@ -1,13 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useRef } from "react";
 import { GlassCard } from "@/components/GlassCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { getSystemConfig } from "@/components/SystemSettings";
-import { PhotoUpload } from "@/components/PhotoUpload";
+import { useStaffPayments, StaffPayment } from "@/hooks/useStaffPayments";
 import { 
   DollarSign, 
   User, 
@@ -18,98 +16,56 @@ import {
   Eye,
   Bus,
   Briefcase,
-  Upload
+  Upload,
+  XCircle
 } from "lucide-react";
 
-interface StaffPayment {
-  id: string;
-  staff_name: string;
-  reservation_id: string;
-  cleaning_date: string;
-  service_fee: number; // Restart fee
-  transport_fee: number; // Transport allowance
-  total: number;
-  status: "Pendente" | "Pago";
-  paid_date?: string;
-  photo_urls?: string[];
-  payment_proof_url?: string;
-}
-
-// Mock data - replace with API call
-const getMockPayments = (): StaffPayment[] => {
-  const config = getSystemConfig();
-  return [
-    {
-      id: "pay_001",
-      staff_name: "João Silva",
-      reservation_id: "res_abc123",
-      cleaning_date: "2024-01-15T14:30:00",
-      service_fee: config.restartFee,
-      transport_fee: config.transportAllowance,
-      total: config.restartFee + config.transportAllowance,
-      status: "Pendente",
-      photo_urls: ["https://via.placeholder.com/300x200?text=Sala+Limpa"]
-    },
-    {
-      id: "pay_002",
-      staff_name: "Maria Santos",
-      reservation_id: "res_def456",
-      cleaning_date: "2024-01-15T10:00:00",
-      service_fee: config.restartFee,
-      transport_fee: config.transportAllowance,
-      total: config.restartFee + config.transportAllowance,
-      status: "Pago",
-      paid_date: "2024-01-16T09:00:00",
-      photo_urls: ["https://via.placeholder.com/300x200?text=Auditoria"],
-      payment_proof_url: "https://via.placeholder.com/300x200?text=Comprovante"
-    },
-  ];
-};
-
 export function StaffPayments() {
-  const [payments, setPayments] = useState<StaffPayment[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [processingId, setProcessingId] = useState<string | null>(null);
+  const {
+    payments,
+    pendingPayments,
+    paidPayments,
+    totalPending,
+    totalPaid,
+    isLoading,
+    isUploading,
+    confirmPayment,
+    cancelPayment,
+  } = useStaffPayments();
+
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<StaffPayment | null>(null);
-  const [proofPhotos, setProofPhotos] = useState<string[]>([]);
-  const config = getSystemConfig();
-
-  useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setPayments(getMockPayments());
-      setIsLoading(false);
-    }, 500);
-  }, []);
-
-  const pendingPayments = payments.filter(p => p.status === "Pendente");
-  const paidPayments = payments.filter(p => p.status === "Pago");
-  
-  const totalPending = pendingPayments.reduce((sum, p) => sum + p.total, 0);
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Group by staff
   const pendingByStaff = pendingPayments.reduce((acc, p) => {
-    if (!acc[p.staff_name]) {
-      acc[p.staff_name] = { count: 0, total: 0, service: 0, transport: 0 };
+    const name = p.staff_name || "Desconhecido";
+    if (!acc[name]) {
+      acc[name] = { count: 0, total: 0 };
     }
-    acc[p.staff_name].count++;
-    acc[p.staff_name].total += p.total;
-    acc[p.staff_name].service += p.service_fee;
-    acc[p.staff_name].transport += p.transport_fee;
+    acc[name].count++;
+    acc[name].total += Number(p.amount);
     return acc;
-  }, {} as Record<string, { count: number; total: number; service: number; transport: number }>);
+  }, {} as Record<string, { count: number; total: number }>);
 
   const openConfirmDialog = (payment: StaffPayment) => {
     setSelectedPayment(payment);
-    setProofPhotos([]);
+    setProofFile(null);
     setConfirmDialogOpen(true);
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setProofFile(file);
+    }
+  };
+
   const handleConfirmPayment = async () => {
-    if (!selectedPayment) return;
-    if (proofPhotos.length === 0) {
+    if (!selectedPayment || !proofFile) {
       toast({
         title: "Comprovante Obrigatório",
         description: "Por favor, envie o comprovante de pagamento antes de confirmar.",
@@ -120,29 +76,21 @@ export function StaffPayments() {
 
     setProcessingId(selectedPayment.id);
     
-    // Simulate API call - In real implementation, save service_fee and transport_fee separately
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    const success = await confirmPayment(selectedPayment.id, proofFile, "PIX");
     
-    setPayments(prev => prev.map(p => 
-      p.id === selectedPayment.id 
-        ? { 
-            ...p, 
-            status: "Pago" as const, 
-            paid_date: new Date().toISOString(),
-            payment_proof_url: proofPhotos[0]
-          }
-        : p
-    ));
+    if (success) {
+      setConfirmDialogOpen(false);
+      setSelectedPayment(null);
+      setProofFile(null);
+    }
     
     setProcessingId(null);
-    setConfirmDialogOpen(false);
-    setSelectedPayment(null);
-    setProofPhotos([]);
-    
-    toast({
-      title: "Pagamento Confirmado",
-      description: `Serviço: R$ ${selectedPayment.service_fee.toFixed(2)} | Transporte: R$ ${selectedPayment.transport_fee.toFixed(2)}`,
-    });
+  };
+
+  const handleCancelPayment = async (paymentId: string) => {
+    setProcessingId(paymentId);
+    await cancelPayment(paymentId);
+    setProcessingId(null);
   };
 
   const formatCurrency = (value: number) => 
@@ -156,6 +104,16 @@ export function StaffPayments() {
       hour: '2-digit',
       minute: '2-digit'
     });
+
+  const getFeeTypeLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      cleaning: "Limpeza",
+      extra_service: "Serviço Extra",
+      bonus: "Bônus",
+      other: "Outro",
+    };
+    return labels[type] || type;
+  };
 
   if (isLoading) {
     return (
@@ -183,9 +141,7 @@ export function StaffPayments() {
             <CheckCircle className="w-5 h-5 text-success" />
             <span className="text-sm text-muted-foreground">Pagos Este Mês</span>
           </div>
-          <p className="text-2xl font-bold text-success">
-            {formatCurrency(paidPayments.reduce((sum, p) => sum + p.total, 0))}
-          </p>
+          <p className="text-2xl font-bold text-success">{formatCurrency(totalPaid)}</p>
           <p className="text-xs text-muted-foreground">{paidPayments.length} pagamento(s)</p>
         </GlassCard>
 
@@ -209,23 +165,13 @@ export function StaffPayments() {
           <div className="space-y-2">
             {Object.entries(pendingByStaff).map(([name, data]) => (
               <div key={name} className="p-3 bg-secondary/30 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <User className="w-5 h-5 text-muted-foreground" />
                     <span>{name}</span>
-                    <Badge variant="secondary">{data.count} limpeza(s)</Badge>
+                    <Badge variant="secondary">{data.count} serviço(s)</Badge>
                   </div>
                   <span className="font-bold text-warning">{formatCurrency(data.total)}</span>
-                </div>
-                <div className="flex gap-4 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <Briefcase className="w-3 h-3" />
-                    Serviço: {formatCurrency(data.service)}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Bus className="w-3 h-3" />
-                    Transporte: {formatCurrency(data.transport)}
-                  </span>
                 </div>
               </div>
             ))}
@@ -252,47 +198,35 @@ export function StaffPayments() {
                   <div>
                     <p className="font-medium">{payment.staff_name}</p>
                     <p className="text-xs text-muted-foreground">
-                      Reserva: {payment.reservation_id}
+                      {getFeeTypeLabel(payment.fee_type)}
                     </p>
+                    {payment.description && (
+                      <p className="text-xs text-muted-foreground">
+                        {payment.description}
+                      </p>
+                    )}
                     <p className="text-xs text-muted-foreground">
-                      {formatDate(payment.cleaning_date)}
+                      {formatDate(payment.created_at)}
                     </p>
                   </div>
-                  <Badge variant="outline" className="text-warning border-warning">
-                    Pendente
-                  </Badge>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2 text-sm">
-                  <div>
-                    <p className="text-muted-foreground text-xs flex items-center gap-1">
-                      <Briefcase className="w-3 h-3" /> Serviço
-                    </p>
-                    <p className="font-medium">{formatCurrency(payment.service_fee)}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground text-xs flex items-center gap-1">
-                      <Bus className="w-3 h-3" /> Transporte
-                    </p>
-                    <p className="font-medium">{formatCurrency(payment.transport_fee)}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground text-xs">Total</p>
-                    <p className="font-bold text-primary">{formatCurrency(payment.total)}</p>
+                  <div className="text-right">
+                    <Badge variant="outline" className="text-warning border-warning">
+                      {payment.status === "approved" ? "Aprovado" : "Pendente"}
+                    </Badge>
+                    <p className="font-bold text-primary mt-1">{formatCurrency(Number(payment.amount))}</p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {payment.photo_urls && payment.photo_urls.length > 0 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSelectedPhoto(payment.photo_urls![0])}
-                    >
-                      <Eye className="w-4 h-4 mr-1" />
-                      Ver Foto
-                    </Button>
-                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleCancelPayment(payment.id)}
+                    disabled={processingId === payment.id}
+                  >
+                    <XCircle className="w-4 h-4 mr-1" />
+                    Cancelar
+                  </Button>
                   <Button
                     size="sm"
                     className="ml-auto"
@@ -332,11 +266,11 @@ export function StaffPayments() {
                   <div>
                     <p className="font-medium">{payment.staff_name}</p>
                     <p className="text-xs text-muted-foreground">
-                      Limpeza: {formatDate(payment.cleaning_date)}
+                      {getFeeTypeLabel(payment.fee_type)} - {payment.description || ""}
                     </p>
-                    {payment.paid_date && (
+                    {payment.paid_at && (
                       <p className="text-xs text-success">
-                        Pago em: {formatDate(payment.paid_date)}
+                        Pago em: {formatDate(payment.paid_at)}
                       </p>
                     )}
                   </div>
@@ -344,30 +278,22 @@ export function StaffPayments() {
                     <Badge variant="outline" className="text-success border-success">
                       Pago
                     </Badge>
-                    <p className="font-bold mt-1">{formatCurrency(payment.total)}</p>
+                    <p className="font-bold mt-1">{formatCurrency(Number(payment.amount))}</p>
                   </div>
                 </div>
-                <div className="flex gap-4 text-xs text-muted-foreground border-t border-border pt-2 mt-2">
-                  <span className="flex items-center gap-1">
-                    <Briefcase className="w-3 h-3" />
-                    Serviço: {formatCurrency(payment.service_fee)}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Bus className="w-3 h-3" />
-                    Transporte: {formatCurrency(payment.transport_fee)}
-                  </span>
-                  {payment.payment_proof_url && (
+                {payment.payment_proof_url && (
+                  <div className="flex justify-end">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="ml-auto h-5 px-2 text-xs"
+                      className="h-5 px-2 text-xs"
                       onClick={() => setSelectedPhoto(payment.payment_proof_url!)}
                     >
-                      <Upload className="w-3 h-3 mr-1" />
-                      Comprovante
+                      <Eye className="w-3 h-3 mr-1" />
+                      Ver Comprovante
                     </Button>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -386,7 +312,7 @@ export function StaffPayments() {
           {selectedPhoto && (
             <img 
               src={selectedPhoto} 
-              alt="Foto" 
+              alt="Comprovante" 
               className="w-full rounded-lg"
             />
           )}
@@ -410,25 +336,14 @@ export function StaffPayments() {
             <div className="space-y-4">
               <div className="p-3 bg-secondary/30 rounded-lg space-y-2">
                 <p className="font-medium">{selectedPayment.staff_name}</p>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <p className="text-muted-foreground text-xs flex items-center gap-1">
-                      <Briefcase className="w-3 h-3" /> Serviço
-                    </p>
-                    <p className="font-medium">{formatCurrency(selectedPayment.service_fee)}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground text-xs flex items-center gap-1">
-                      <Bus className="w-3 h-3" /> Transporte
-                    </p>
-                    <p className="font-medium">{formatCurrency(selectedPayment.transport_fee)}</p>
-                  </div>
-                </div>
+                <p className="text-sm text-muted-foreground">
+                  {getFeeTypeLabel(selectedPayment.fee_type)}
+                </p>
                 <div className="pt-2 border-t border-border">
                   <p className="text-sm">
                     <span className="text-muted-foreground">Total:</span>
                     <span className="font-bold text-primary ml-2">
-                      {formatCurrency(selectedPayment.total)}
+                      {formatCurrency(Number(selectedPayment.amount))}
                     </span>
                   </p>
                 </div>
@@ -439,11 +354,21 @@ export function StaffPayments() {
                   <Upload className="w-4 h-4" />
                   Comprovante de Pagamento *
                 </Label>
-                <PhotoUpload
-                  photos={proofPhotos}
-                  onPhotosChange={setProofPhotos}
-                  maxPhotos={1}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,application/pdf"
+                  onChange={handleFileChange}
+                  className="hidden"
                 />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {proofFile ? proofFile.name : "Selecionar Arquivo"}
+                </Button>
                 <p className="text-xs text-muted-foreground">
                   Obrigatório: Envie o comprovante para confirmar o pagamento
                 </p>
@@ -457,14 +382,19 @@ export function StaffPayments() {
             </Button>
             <Button 
               onClick={handleConfirmPayment}
-              disabled={processingId !== null || proofPhotos.length === 0}
+              disabled={processingId !== null || !proofFile || isUploading}
             >
-              {processingId ? (
-                <Loader2 className="w-4 h-4 animate-spin mr-1" />
+              {isUploading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                  Enviando...
+                </>
               ) : (
-                <CheckCircle className="w-4 h-4 mr-1" />
+                <>
+                  <CheckCircle className="w-4 h-4 mr-1" />
+                  Confirmar
+                </>
               )}
-              Confirmar Pagamento
             </Button>
           </DialogFooter>
         </DialogContent>
