@@ -5,12 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { submitStaffAudit, updateRoomStatus, getLastReservation, ROOM_ID } from "@/lib/api";
+import { updateRoomStatus, getLastReservation, ROOM_ID } from "@/lib/api";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { PhotoUpload } from "@/components/PhotoUpload";
+import { useStorage } from "@/hooks/useStorage";
 import { 
   Zap, 
   ClipboardCheck, 
@@ -57,6 +57,7 @@ const initialOrganizationChecklist: ChecklistItem[] = [
 
 export default function Staff() {
   const { user, profile } = useAuth();
+  const { uploadBase64Images, isUploading: isUploadingPhotos } = useStorage();
   const [reservationId, setReservationId] = useState("");
   const [clientName, setClientName] = useState("");
   const [isLoadingReservation, setIsLoadingReservation] = useState(true);
@@ -177,24 +178,67 @@ export default function Staff() {
     setIsSubmitting(true);
 
     try {
-      // Submit audit data
-      await submitStaffAudit({
-        room_id: ROOM_ID,
-        reservation_id: reservationId,
-        staff_id: staffId,
-        staff_name: staffName,
-        coffee_capsules_remaining: coffeeCapsulesRemaining,
-        cleaning_checklist: cleaningChecklist.reduce((acc, item) => {
-          acc[item.id] = item.checked;
-          return acc;
-        }, {} as Record<string, boolean>),
-        organization_checklist: organizationChecklist.reduce((acc, item) => {
-          acc[item.id] = item.checked;
-          return acc;
-        }, {} as Record<string, boolean>),
-        damage_report: damageReport.trim() || null,
-        photo_urls: photos,
-      });
+      // Upload photos to Supabase Storage
+      const folder = `audits/${reservationId || "general"}`;
+      const photoUrls = await uploadBase64Images("audit-photos", photos, folder);
+
+      // Prepare checklist data
+      const cleaningData = cleaningChecklist.reduce((acc, item) => {
+        acc[item.id] = item.checked;
+        return acc;
+      }, {} as Record<string, boolean>);
+
+      const organizationData = organizationChecklist.reduce((acc, item) => {
+        acc[item.id] = item.checked;
+        return acc;
+      }, {} as Record<string, boolean>);
+
+      // Save to Supabase staff_audits table
+      const { error: insertError } = await supabase
+        .from("staff_audits")
+        .insert({
+          reservation_id: reservationId || null,
+          staff_id: staffId,
+          room_id: ROOM_ID,
+          cleaning_checklist: cleaningData,
+          organization_checklist: organizationData,
+          coffee_capsules_used: 20 - coffeeCapsulesRemaining,
+          coffee_capsules_remaining: coffeeCapsulesRemaining,
+          has_damage: damageReport.trim().length > 0,
+          damage_description: damageReport.trim() || null,
+          photo_urls: photoUrls,
+          status: "completed",
+          completed_at: new Date().toISOString(),
+        });
+
+      if (insertError) {
+        console.error("Error saving audit:", insertError);
+        toast({
+          title: "Erro ao salvar",
+          description: insertError.message,
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Create staff payment record for this cleaning
+      const CLEANING_FEE = 30.00;
+      const { error: paymentError } = await supabase
+        .from("staff_payments")
+        .insert({
+          staff_id: staffId,
+          reservation_id: reservationId || null,
+          amount: CLEANING_FEE,
+          fee_type: "cleaning",
+          description: `Limpeza - ${clientName || "Sala"}`,
+          status: "pending",
+        });
+
+      if (paymentError) {
+        console.error("Error creating payment:", paymentError);
+        // Don't fail the whole operation for payment creation error
+      }
 
       // Update room status to Available
       await updateRoomStatus(ROOM_ID, "Disponível");
@@ -202,7 +246,7 @@ export default function Staff() {
       setIsSuccess(true);
       toast({
         title: "Manutenção Finalizada",
-        description: "Sala liberada com sucesso para próxima reserva!",
+        description: "Sala liberada e dados salvos no banco de dados!",
       });
 
       // Reset form after success
@@ -443,7 +487,7 @@ export default function Staff() {
             size="lg"
             className="w-full h-14"
             onClick={handleSubmit}
-            disabled={isSubmitting || isSuccess || isLoadingReservation}
+            disabled={isSubmitting || isSuccess || isLoadingReservation || isUploadingPhotos}
           >
             {isSubmitting ? (
               <>
