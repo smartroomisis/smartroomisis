@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { useAuth } from "@/hooks/useAuth";
+import Landing from "./pages/Landing";
 import Dashboard from "./pages/Dashboard";
 import Booking from "./pages/Booking";
 import Admin from "./pages/Admin";
@@ -110,20 +111,22 @@ function AppContent() {
     <div className={cn("min-h-screen bg-background", user && getThemeClass())}>
       {user && <Navigation />}
       <Routes>
-        {/* Auth Routes - separate for each role */}
-        <Route path="/auth" element={user ? <Navigate to="/" replace /> : <Auth />} />
-        <Route path="/auth/staff" element={<AuthStaff />} />
-        <Route path="/auth/admin" element={<AuthAdmin />} />
-        
-        {/* Home Route - redirect based on role */}
+        {/* Public Landing Page */}
         <Route
           path="/"
           element={
-            <ProtectedRoute>
-              {isAdmin ? <Navigate to="/admin" replace /> : isStaff ? <Navigate to="/staff" replace /> : <Dashboard />}
-            </ProtectedRoute>
+            user ? (
+              isAdmin ? <Navigate to="/admin" replace /> : isStaff ? <Navigate to="/staff" replace /> : <Navigate to="/dashboard" replace />
+            ) : (
+              <Landing />
+            )
           }
         />
+        
+        {/* Auth Routes - separate for each role */}
+        <Route path="/auth" element={user ? <Navigate to="/dashboard" replace /> : <Auth />} />
+        <Route path="/auth/staff" element={<AuthStaff />} />
+        <Route path="/auth/admin" element={<AuthAdmin />} />
         <Route
           path="/dashboard"
           element={
