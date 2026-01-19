@@ -17,6 +17,7 @@ import { EnterpriseCompanies } from "@/components/EnterpriseCompanies";
 import { AdminCreditManager } from "@/components/AdminCreditManager";
 import { SubscriptionPlansEditor } from "@/components/SubscriptionPlansEditor";
 import { AdminReservationCalendar } from "@/components/AdminReservationCalendar";
+import { LandingPageEditor } from "@/components/LandingPageEditor";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -33,7 +34,8 @@ import {
   Building2,
   Wallet,
   CreditCard,
-  Calendar
+  Calendar,
+  Globe
 } from "lucide-react";
 
 export default function Admin() {
@@ -109,6 +111,10 @@ export default function Admin() {
                 <FileText className="w-4 h-4" />
                 DAS
               </TabsTrigger>
+              <TabsTrigger value="landing" className="flex items-center gap-2 px-3 py-2 text-sm whitespace-nowrap">
+                <Globe className="w-4 h-4" />
+                Site
+              </TabsTrigger>
               <TabsTrigger value="settings" className="flex items-center gap-2 px-3 py-2 text-sm whitespace-nowrap">
                 <Settings className="w-4 h-4" />
                 Config
@@ -164,6 +170,11 @@ export default function Admin() {
           {/* DAS-MEI Tab */}
           <TabsContent value="das" className="space-y-6">
             <DASMEIControl />
+          </TabsContent>
+
+          {/* Landing Page Editor Tab */}
+          <TabsContent value="landing" className="space-y-6">
+            <LandingPageEditor />
           </TabsContent>
 
           {/* Settings Tab - without pricing (moved to Plans) */}
