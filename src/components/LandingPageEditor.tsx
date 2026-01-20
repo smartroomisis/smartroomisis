@@ -22,7 +22,11 @@ import {
   Megaphone,
   ListOrdered,
   DollarSign,
-  RefreshCw
+  RefreshCw,
+  Plus,
+  Trash2,
+  Image,
+  GripVertical
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -86,6 +90,16 @@ export const LandingPageEditor = () => {
     handleContentChange(arrayKey, updatedArray);
   };
 
+  const handleAddItem = (arrayKey: string, template: Record<string, any>) => {
+    const currentArray = currentContent[arrayKey] || [];
+    handleContentChange(arrayKey, [...currentArray, template]);
+  };
+
+  const handleRemoveItem = (arrayKey: string, index: number) => {
+    const currentArray = currentContent[arrayKey] || [];
+    handleContentChange(arrayKey, currentArray.filter((_: any, i: number) => i !== index));
+  };
+
   const handleSave = () => {
     if (editedContent[activeSection]) {
       updateSection.mutate({
@@ -100,7 +114,15 @@ export const LandingPageEditor = () => {
   };
 
   const renderHeroEditor = () => (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <Label>Texto do Badge</Label>
+        <Input
+          value={currentContent.badge_text || ""}
+          onChange={(e) => handleContentChange("badge_text", e.target.value)}
+          placeholder="Ex: 100% Autônomo • Sem recepção"
+        />
+      </div>
       <div className="space-y-2">
         <Label>Título Principal</Label>
         <Input
@@ -136,6 +158,77 @@ export const LandingPageEditor = () => {
           />
         </div>
       </div>
+
+      {/* Carousel Items */}
+      <div className="space-y-4 pt-4 border-t">
+        <div className="flex items-center justify-between">
+          <Label className="text-base font-semibold flex items-center gap-2">
+            <Image className="w-4 h-4" />
+            Carrossel de Imagens ({currentContent.carousel_items?.length || 0})
+          </Label>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => handleAddItem("carousel_items", {
+              image_url: "",
+              title: "Novo Slide",
+              description: "Descrição do slide"
+            })}
+          >
+            <Plus className="w-4 h-4 mr-1" />
+            Adicionar Slide
+          </Button>
+        </div>
+        {currentContent.carousel_items?.map((item: any, index: number) => (
+          <Card key={index} className="p-4 bg-muted/50">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <GripVertical className="w-4 h-4 text-muted-foreground" />
+                  <Badge variant="outline">Slide {index + 1}</Badge>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => handleRemoveItem("carousel_items", index)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">URL da Imagem (opcional)</Label>
+                <Input
+                  value={item.image_url || ""}
+                  onChange={(e) => handleNestedChange("carousel_items", index, "image_url", e.target.value)}
+                  placeholder="https://exemplo.com/imagem.jpg"
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Título</Label>
+                  <Input
+                    value={item.title || ""}
+                    onChange={(e) => handleNestedChange("carousel_items", index, "title", e.target.value)}
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Descrição</Label>
+                  <Input
+                    value={item.description || ""}
+                    onChange={(e) => handleNestedChange("carousel_items", index, "description", e.target.value)}
+                    className="h-8 text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 
@@ -156,21 +249,48 @@ export const LandingPageEditor = () => {
         />
       </div>
       <div className="space-y-4">
-        <Label>Itens ({currentContent.items?.length || 0})</Label>
+        <div className="flex items-center justify-between">
+          <Label className="text-base font-semibold">Recursos ({currentContent.items?.length || 0})</Label>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => handleAddItem("items", {
+              icon: "Star",
+              title: "Novo Recurso",
+              description: "Descrição do recurso"
+            })}
+          >
+            <Plus className="w-4 h-4 mr-1" />
+            Adicionar
+          </Button>
+        </div>
         {currentContent.items?.map((item: any, index: number) => (
           <Card key={index} className="p-4 bg-muted/50">
             <div className="space-y-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Badge variant="outline">{index + 1}</Badge>
-                <span className="text-sm font-medium">{item.title}</span>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <GripVertical className="w-4 h-4 text-muted-foreground" />
+                  <Badge variant="outline">{index + 1}</Badge>
+                  <span className="text-sm font-medium">{item.title}</span>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => handleRemoveItem("items", index)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label className="text-xs">Ícone</Label>
+                  <Label className="text-xs">Ícone (Lucide)</Label>
                   <Input
                     value={item.icon || ""}
                     onChange={(e) => handleNestedChange("items", index, "icon", e.target.value)}
-                    placeholder="Nome do ícone"
+                    placeholder="Lightbulb, Wifi, Coffee..."
                     className="h-8 text-sm"
                   />
                 </div>
@@ -216,21 +336,69 @@ export const LandingPageEditor = () => {
         />
       </div>
       <div className="space-y-4">
-        <Label>Passos ({currentContent.steps?.length || 0})</Label>
+        <div className="flex items-center justify-between">
+          <Label className="text-base font-semibold">Passos ({currentContent.steps?.length || 0})</Label>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => handleAddItem("steps", {
+              number: (currentContent.steps?.length || 0) + 1,
+              title: "Novo Passo",
+              description: "Descrição do passo",
+              icon: "Zap"
+            })}
+          >
+            <Plus className="w-4 h-4 mr-1" />
+            Adicionar
+          </Button>
+        </div>
         {currentContent.steps?.map((step: any, index: number) => (
           <Card key={index} className="p-4 bg-muted/50">
             <div className="space-y-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Badge>{step.number}</Badge>
-                <span className="text-sm font-medium">{step.title}</span>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <GripVertical className="w-4 h-4 text-muted-foreground" />
+                  <Badge>{step.number || index + 1}</Badge>
+                  <span className="text-sm font-medium">{step.title}</span>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => handleRemoveItem("steps", index)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Título</Label>
-                <Input
-                  value={step.title || ""}
-                  onChange={(e) => handleNestedChange("steps", index, "title", e.target.value)}
-                  className="h-8 text-sm"
-                />
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Número</Label>
+                  <Input
+                    type="number"
+                    value={step.number || index + 1}
+                    onChange={(e) => handleNestedChange("steps", index, "number", parseInt(e.target.value))}
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Ícone</Label>
+                  <Input
+                    value={step.icon || ""}
+                    onChange={(e) => handleNestedChange("steps", index, "icon", e.target.value)}
+                    placeholder="Calendar, KeyRound..."
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Título</Label>
+                  <Input
+                    value={step.title || ""}
+                    onChange={(e) => handleNestedChange("steps", index, "title", e.target.value)}
+                    className="h-8 text-sm"
+                  />
+                </div>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Descrição</Label>
@@ -265,23 +433,53 @@ export const LandingPageEditor = () => {
         />
       </div>
       <div className="space-y-4">
-        <Label>Planos ({currentContent.plans?.length || 0})</Label>
+        <div className="flex items-center justify-between">
+          <Label className="text-base font-semibold">Planos ({currentContent.plans?.length || 0})</Label>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => handleAddItem("plans", {
+              name: "Novo Plano",
+              price: "R$ 0",
+              period: "/mês",
+              features: ["Recurso 1", "Recurso 2"],
+              highlighted: false,
+              cta: "Escolher"
+            })}
+          >
+            <Plus className="w-4 h-4 mr-1" />
+            Adicionar
+          </Button>
+        </div>
         {currentContent.plans?.map((plan: any, index: number) => (
           <Card key={index} className="p-4 bg-muted/50">
             <div className="space-y-3">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
+                  <GripVertical className="w-4 h-4 text-muted-foreground" />
                   <Badge variant={plan.highlighted ? "default" : "outline"}>{plan.name}</Badge>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Label className="text-xs">Destacar</Label>
-                  <Switch
-                    checked={plan.highlighted || false}
-                    onCheckedChange={(checked) => handleNestedChange("plans", index, "highlighted", checked)}
-                  />
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs">Destacar</Label>
+                    <Switch
+                      checked={plan.highlighted || false}
+                      onCheckedChange={(checked) => handleNestedChange("plans", index, "highlighted", checked)}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => handleRemoveItem("plans", index)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-4 gap-3">
                 <div className="space-y-1">
                   <Label className="text-xs">Nome</Label>
                   <Input
@@ -306,12 +504,20 @@ export const LandingPageEditor = () => {
                     className="h-8 text-sm"
                   />
                 </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">CTA</Label>
+                  <Input
+                    value={plan.cta || ""}
+                    onChange={(e) => handleNestedChange("plans", index, "cta", e.target.value)}
+                    className="h-8 text-sm"
+                  />
+                </div>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Recursos (um por linha)</Label>
                 <Textarea
                   value={(plan.features || []).join("\n")}
-                  onChange={(e) => handleNestedChange("plans", index, "features", e.target.value.split("\n"))}
+                  onChange={(e) => handleNestedChange("plans", index, "features", e.target.value.split("\n").filter(Boolean))}
                   rows={3}
                   className="text-sm"
                 />
@@ -333,11 +539,39 @@ export const LandingPageEditor = () => {
         />
       </div>
       <div className="space-y-4">
-        <Label>Perguntas ({currentContent.items?.length || 0})</Label>
+        <div className="flex items-center justify-between">
+          <Label className="text-base font-semibold">Perguntas ({currentContent.items?.length || 0})</Label>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => handleAddItem("items", {
+              question: "Nova pergunta?",
+              answer: "Resposta da pergunta."
+            })}
+          >
+            <Plus className="w-4 h-4 mr-1" />
+            Adicionar
+          </Button>
+        </div>
         {currentContent.items?.map((item: any, index: number) => (
           <Card key={index} className="p-4 bg-muted/50">
             <div className="space-y-3">
-              <Badge variant="outline" className="mb-2">{index + 1}</Badge>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <GripVertical className="w-4 h-4 text-muted-foreground" />
+                  <Badge variant="outline">{index + 1}</Badge>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => handleRemoveItem("items", index)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
               <div className="space-y-1">
                 <Label className="text-xs">Pergunta</Label>
                 <Input
@@ -427,7 +661,7 @@ export const LandingPageEditor = () => {
               Editor da Landing Page
             </CardTitle>
             <CardDescription>
-              Edite os textos e conteúdos da página inicial do sistema
+              Edite os textos, imagens e conteúdos da página inicial
             </CardDescription>
           </div>
           <Button variant="outline" size="sm" onClick={() => refetch()}>
