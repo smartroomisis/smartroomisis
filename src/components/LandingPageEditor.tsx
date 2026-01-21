@@ -26,9 +26,11 @@ import {
   Plus,
   Trash2,
   Image,
-  GripVertical
+  GripVertical,
+  Upload
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { ImageUpload } from "@/components/ImageUpload";
 
 const sectionIcons: Record<string, React.ReactNode> = {
   hero: <Layout className="w-4 h-4" />,
@@ -198,12 +200,21 @@ export const LandingPageEditor = () => {
                   <Trash2 className="w-4 h-4" />
                 </Button>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs">URL da Imagem (opcional)</Label>
+              <div className="space-y-2">
+                <Label className="text-xs flex items-center gap-2">
+                  <Upload className="w-3 h-3" />
+                  Imagem do Slide
+                </Label>
+                <ImageUpload
+                  bucket="hero-images"
+                  folder="carousel"
+                  currentImageUrl={item.image_url}
+                  onUploadComplete={(url) => handleNestedChange("carousel_items", index, "image_url", url)}
+                />
                 <Input
                   value={item.image_url || ""}
                   onChange={(e) => handleNestedChange("carousel_items", index, "image_url", e.target.value)}
-                  placeholder="https://exemplo.com/imagem.jpg"
+                  placeholder="Ou cole uma URL externa..."
                   className="h-8 text-sm"
                 />
               </div>

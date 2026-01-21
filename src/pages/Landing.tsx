@@ -28,6 +28,7 @@ import {
 import { useLandingPageConfig } from "@/hooks/useLandingPageConfig";
 import { HeroCarousel } from "@/components/landing/HeroCarousel";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 // Icon mapping for dynamic rendering
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -90,7 +91,8 @@ const Landing = () => {
             </div>
             <span className="font-bold text-xl text-white">Smart Room</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
             <Link to="/auth">
               <Button variant="ghost" size="sm" className="text-[hsl(210,20%,75%)] hover:text-white hover:bg-[hsl(210,20%,15%)]">
                 Entrar
