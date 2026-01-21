@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { GlassCard } from "@/components/GlassCard";
 import { TermsOfUseModal } from "@/components/TermsOfUseModal";
+import { GoogleAuthButton } from "@/components/GoogleAuthButton";
 import { 
   Zap, 
   Loader2, 
@@ -324,6 +325,17 @@ export default function Auth() {
                   )}
                 </Button>
               </form>
+
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">ou continue com</span>
+                </div>
+              </div>
+
+              <GoogleAuthButton mode="login" />
 
               <div className="mt-6 text-center">
                 <button

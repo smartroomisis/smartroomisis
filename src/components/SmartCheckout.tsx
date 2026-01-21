@@ -196,23 +196,34 @@ export function SmartCheckout({
         end_time: reservationDetails?.endTime || "",
         hours: hoursRequested,
         payment_mode: "stripe",
-        total_price: totalPrice,
+        total_price: totalPrice > 0 ? totalPrice : hoursRequested * pricePerHour,
       });
 
       if (!reservationResult.success) {
         throw new Error(reservationResult.error || "Erro ao criar reserva");
       }
 
-      // TODO: Integrate with Stripe Checkout
-      // For now, simulate success
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      toast({
-        title: "Pagamento processado!",
-        description: `Cobrança de R$ ${totalPrice.toFixed(2)} realizada. Código: ${reservationResult.access_code || "N/A"}`,
+      // Call Stripe checkout edge function
+      const { data, error } = await supabase.functions.invoke("stripe-checkout", {
+        body: {
+          hours: hoursToCharge > 0 ? hoursToCharge : hoursRequested,
+          price_per_hour: pricePerHour,
+          reservation_id: reservationResult.reservation_id,
+          user_email: profile.email,
+          reservation_date: reservationDetails?.date || new Date().toLocaleDateString("pt-BR"),
+          start_time: reservationDetails?.startTime || "",
+          end_time: reservationDetails?.endTime || "",
+        },
       });
 
-      onSuccess("stripe");
+      if (error) throw error;
+
+      if (data?.url) {
+        // Redirect to Stripe Checkout
+        window.location.href = data.url;
+      } else {
+        throw new Error("Não foi possível criar sessão de pagamento");
+      }
     } catch (error) {
       console.error("Error processing Stripe payment:", error);
       toast({
@@ -220,7 +231,6 @@ export function SmartCheckout({
         description: error instanceof Error ? error.message : "Erro ao processar pagamento.",
         variant: "destructive",
       });
-    } finally {
       setLoading(false);
     }
   };
