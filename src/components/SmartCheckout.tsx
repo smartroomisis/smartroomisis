@@ -15,19 +15,21 @@ import {
   Clock, 
   ArrowRight,
   Loader2,
-  CheckCircle
+  CheckCircle,
+  QrCode
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { createReservation, ROOM_ID } from "@/lib/api";
+import { PixPaymentModal } from "@/components/PixPaymentModal";
 
 interface SmartCheckoutProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   hoursRequested: number;
   pricePerHour: number;
-  onSuccess: (paymentMode: "credit" | "stripe" | "invoice") => void;
+  onSuccess: (paymentMode: "credit" | "stripe" | "invoice" | "pix") => void;
   reservationDetails?: {
     date: string;
     startTime: string;
@@ -45,7 +47,8 @@ export function SmartCheckout({
 }: SmartCheckoutProps) {
   const { profile, isEnterprise, refetchProfile } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [paymentMode, setPaymentMode] = useState<"credit" | "stripe" | "invoice" | null>(null);
+  const [paymentMode, setPaymentMode] = useState<"credit" | "stripe" | "invoice" | "pix" | null>(null);
+  const [showPixModal, setShowPixModal] = useState(false);
   const { toast } = useToast();
 
   const userCredits = profile?.credit_hours || 0;
@@ -53,6 +56,7 @@ export function SmartCheckout({
   const hoursFromCredits = Math.min(userCredits, hoursRequested);
   const hoursToCharge = hoursRequested - hoursFromCredits;
   const totalPrice = hoursToCharge * pricePerHour;
+  const fullPrice = hoursRequested * pricePerHour;
 
   const handlePayWithCredits = async () => {
     if (!profile) return;
@@ -235,151 +239,230 @@ export function SmartCheckout({
     }
   };
 
+  const handlePixPayment = () => {
+    setPaymentMode("pix");
+    setShowPixModal(true);
+  };
+
+  const handlePixConfirmed = async () => {
+    if (!profile) return;
+
+    try {
+      // Create reservation via n8n webhook
+      const reservationResult = await createReservation({
+        user_id: profile.id,
+        user_email: profile.email,
+        client_name: profile.full_name || profile.email,
+        room_id: ROOM_ID,
+        date: reservationDetails?.date || new Date().toLocaleDateString("pt-BR"),
+        start_time: reservationDetails?.startTime || "",
+        end_time: reservationDetails?.endTime || "",
+        hours: hoursRequested,
+        payment_mode: "stripe", // PIX uses same mode in database
+        total_price: fullPrice,
+      });
+
+      if (!reservationResult.success) {
+        throw new Error(reservationResult.error || "Erro ao criar reserva");
+      }
+
+      toast({
+        title: "Reserva confirmada!",
+        description: `Pagamento PIX recebido. Código: ${reservationResult.access_code || "N/A"}`,
+      });
+
+      onSuccess("pix");
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Error creating reservation after PIX:", error);
+      toast({
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Erro ao criar reserva.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Confirmar Reserva</DialogTitle>
-          <DialogDescription>
-            {reservationDetails?.date} • {reservationDetails?.startTime} - {reservationDetails?.endTime}
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirmar Reserva</DialogTitle>
+            <DialogDescription>
+              {reservationDetails?.date} • {reservationDetails?.startTime} - {reservationDetails?.endTime}
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="space-y-4">
-          {/* Reservation Summary */}
-          <div className="p-4 rounded-lg bg-secondary/50 space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Duração</span>
-              <span className="font-medium">{hoursRequested}h</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Valor/hora</span>
-              <span className="font-medium">R$ {pricePerHour.toFixed(2)}</span>
-            </div>
-            <div className="border-t border-border pt-2 mt-2 flex justify-between">
-              <span className="font-medium">Total</span>
-              <span className="font-bold text-lg">R$ {(hoursRequested * pricePerHour).toFixed(2)}</span>
-            </div>
-          </div>
-
-          {/* Enterprise User */}
-          {isEnterprise && (
-            <div className="p-4 rounded-lg border border-warning/30 bg-warning/5">
-              <div className="flex items-center gap-2 mb-2">
-                <Building2 className="w-5 h-5 text-warning" />
-                <span className="font-semibold text-warning">Plano Corporativo</span>
+          <div className="space-y-4">
+            {/* Reservation Summary */}
+            <div className="p-4 rounded-lg bg-secondary/50 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Duração</span>
+                <span className="font-medium">{hoursRequested}h</span>
               </div>
-              <p className="text-sm text-muted-foreground mb-3">
-                Sua reserva será registrada para faturamento da empresa.
-              </p>
-              <Button
-                className="w-full gap-2"
-                onClick={handleEnterpriseBooking}
-                disabled={loading}
-              >
-                {loading && paymentMode === "invoice" ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <>
-                    <CheckCircle className="w-4 h-4" />
-                    Confirmar Reserva
-                  </>
-                )}
-              </Button>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Valor/hora</span>
+                <span className="font-medium">R$ {pricePerHour.toFixed(2)}</span>
+              </div>
+              <div className="border-t border-border pt-2 mt-2 flex justify-between">
+                <span className="font-medium">Total</span>
+                <span className="font-bold text-lg">R$ {fullPrice.toFixed(2)}</span>
+              </div>
             </div>
-          )}
 
-          {/* Regular User Options */}
-          {!isEnterprise && (
-            <>
-              {/* Credit Balance */}
-              <div className="p-4 rounded-lg border border-border">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Wallet className="w-5 h-5 text-primary" />
-                    <span className="font-medium">Seu Saldo</span>
-                  </div>
-                  <Badge variant="outline" className="gap-1">
-                    <Clock className="w-3 h-3" />
-                    {userCredits}h
-                  </Badge>
+            {/* Enterprise User */}
+            {isEnterprise && (
+              <div className="p-4 rounded-lg border border-warning/30 bg-warning/5">
+                <div className="flex items-center gap-2 mb-2">
+                  <Building2 className="w-5 h-5 text-warning" />
+                  <span className="font-semibold text-warning">Plano Corporativo</span>
                 </div>
-
-                {hasEnoughCredits ? (
-                  <>
-                    <p className="text-sm text-success mb-3">
-                      ✓ Você tem saldo suficiente para esta reserva
-                    </p>
-                    <Button
-                      className="w-full gap-2"
-                      onClick={handlePayWithCredits}
-                      disabled={loading}
-                    >
-                      {loading && paymentMode === "credit" ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <>
-                          <Wallet className="w-4 h-4" />
-                          Usar Créditos ({hoursRequested}h)
-                        </>
-                      )}
-                    </Button>
-                  </>
-                ) : userCredits > 0 ? (
-                  <>
-                    <div className="text-sm space-y-1 mb-3">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Usar do saldo</span>
-                        <span className="text-success">{hoursFromCredits}h grátis</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Pagar via Stripe</span>
-                        <span>{hoursToCharge}h = R$ {totalPrice.toFixed(2)}</span>
-                      </div>
-                    </div>
-                    <Button
-                      className="w-full gap-2"
-                      onClick={handleStripePayment}
-                      disabled={loading}
-                    >
-                      {loading && paymentMode === "stripe" ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <>
-                          <CreditCard className="w-4 h-4" />
-                          Pagar R$ {totalPrice.toFixed(2)}
-                          <ArrowRight className="w-4 h-4" />
-                        </>
-                      )}
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Sem créditos disponíveis. Pague via cartão.
-                    </p>
-                    <Button
-                      className="w-full gap-2"
-                      onClick={handleStripePayment}
-                      disabled={loading}
-                    >
-                      {loading && paymentMode === "stripe" ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <>
-                          <CreditCard className="w-4 h-4" />
-                          Pagar R$ {(hoursRequested * pricePerHour).toFixed(2)}
-                          <ArrowRight className="w-4 h-4" />
-                        </>
-                      )}
-                    </Button>
-                  </>
-                )}
+                <p className="text-sm text-muted-foreground mb-3">
+                  Sua reserva será registrada para faturamento da empresa.
+                </p>
+                <Button
+                  className="w-full gap-2"
+                  onClick={handleEnterpriseBooking}
+                  disabled={loading}
+                >
+                  {loading && paymentMode === "invoice" ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      <CheckCircle className="w-4 h-4" />
+                      Confirmar Reserva
+                    </>
+                  )}
+                </Button>
               </div>
-            </>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+            )}
+
+            {/* Regular User Options */}
+            {!isEnterprise && (
+              <>
+                {/* Credit Balance */}
+                <div className="p-4 rounded-lg border border-border">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Wallet className="w-5 h-5 text-primary" />
+                      <span className="font-medium">Seu Saldo</span>
+                    </div>
+                    <Badge variant="outline" className="gap-1">
+                      <Clock className="w-3 h-3" />
+                      {userCredits}h
+                    </Badge>
+                  </div>
+
+                  {hasEnoughCredits ? (
+                    <>
+                      <p className="text-sm text-success mb-3">
+                        ✓ Você tem saldo suficiente para esta reserva
+                      </p>
+                      <Button
+                        className="w-full gap-2"
+                        onClick={handlePayWithCredits}
+                        disabled={loading}
+                      >
+                        {loading && paymentMode === "credit" ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <>
+                            <Wallet className="w-4 h-4" />
+                            Usar Créditos ({hoursRequested}h)
+                          </>
+                        )}
+                      </Button>
+                    </>
+                  ) : userCredits > 0 ? (
+                    <>
+                      <div className="text-sm space-y-1 mb-3">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Usar do saldo</span>
+                          <span className="text-success">{hoursFromCredits}h grátis</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">A pagar</span>
+                          <span>{hoursToCharge}h = R$ {totalPrice.toFixed(2)}</span>
+                        </div>
+                      </div>
+                      
+                      {/* Payment Options */}
+                      <div className="space-y-2">
+                        <Button
+                          className="w-full gap-2"
+                          onClick={handleStripePayment}
+                          disabled={loading}
+                        >
+                          {loading && paymentMode === "stripe" ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <>
+                              <CreditCard className="w-4 h-4" />
+                              Pagar com Cartão
+                              <ArrowRight className="w-4 h-4" />
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="w-full gap-2"
+                          onClick={handlePixPayment}
+                          disabled={loading}
+                        >
+                          <QrCode className="w-4 h-4" />
+                          Pagar com PIX
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Sem créditos disponíveis. Escolha como pagar:
+                      </p>
+                      <div className="space-y-2">
+                        <Button
+                          className="w-full gap-2"
+                          onClick={handleStripePayment}
+                          disabled={loading}
+                        >
+                          {loading && paymentMode === "stripe" ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <>
+                              <CreditCard className="w-4 h-4" />
+                              Pagar com Cartão
+                              <ArrowRight className="w-4 h-4" />
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="w-full gap-2"
+                          onClick={handlePixPayment}
+                          disabled={loading}
+                        >
+                          <QrCode className="w-4 h-4" />
+                          Pagar com PIX
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* PIX Payment Modal */}
+      <PixPaymentModal
+        open={showPixModal}
+        onOpenChange={setShowPixModal}
+        amount={totalPrice > 0 ? totalPrice : fullPrice}
+        description={`Reserva Smart Room - ${reservationDetails?.date}`}
+        onPaymentConfirmed={handlePixConfirmed}
+      />
+    </>
   );
 }
