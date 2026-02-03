@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { PhotoUpload } from "@/components/PhotoUpload";
 import { useStorage } from "@/hooks/useStorage";
+import { ServiceClaimCard } from "@/components/ServiceClaimCard";
 import { 
   Zap, 
   ClipboardCheck, 
@@ -295,6 +296,9 @@ export default function Staff() {
         </div>
 
         <div className="space-y-5">
+          {/* Service Claim Card - NEW */}
+          <ServiceClaimCard />
+          
           {/* Staff & Reservation */}
           <GlassCard className="space-y-4">
             <h3 className="text-lg font-semibold flex items-center gap-2">

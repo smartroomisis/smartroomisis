@@ -3,7 +3,8 @@ import { GlassCard } from "@/components/GlassCard";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { requestCoffee } from "@/lib/api";
-import { Coffee, Loader2, Gift, CreditCard, CheckCircle } from "lucide-react";
+import { PixPaymentModal } from "@/components/PixPaymentModal";
+import { Coffee, Loader2, Gift, CreditCard, CheckCircle, Sparkles } from "lucide-react";
 
 interface CoffeeControlProps {
   disabled?: boolean;
@@ -13,12 +14,14 @@ interface CoffeeControlProps {
 const COOLDOWN_SECONDS = 30;
 const MAX_COURTESY_COFFEES = 2;
 const STORAGE_KEY_PREFIX = "coffee_courtesy_";
+const COFFEE_PRICE = 5.00;
 
 export function CoffeeControl({ disabled = false, reservationId }: CoffeeControlProps) {
   const [courtesyUsed, setCourtesyUsed] = useState(0);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [lastRequestSuccess, setLastRequestSuccess] = useState(false);
+  const [showPixModal, setShowPixModal] = useState(false);
 
   // Load courtesy count from localStorage based on reservationId
   useEffect(() => {
@@ -92,78 +95,119 @@ export function CoffeeControl({ disabled = false, reservationId }: CoffeeControl
     }
   };
 
-  const courtesyDisabled = disabled || courtesyUsed >= MAX_COURTESY_COFFEES || cooldownRemaining > 0 || isLoading;
-  const extraDisabled = disabled || cooldownRemaining > 0 || isLoading;
+  const handleBuyCoffee = () => {
+    setShowPixModal(true);
+  };
+
+  const handlePixPaymentConfirmed = () => {
+    // After PIX payment, prepare the coffee
+    handlePrepareCoffee("extra");
+    toast({
+      title: "Máquina liberada! ☕",
+      description: "Aproveite seu café.",
+    });
+  };
+
+  const hasCourtesy = courtesyUsed < MAX_COURTESY_COFFEES;
+  const courtesyRemaining = MAX_COURTESY_COFFEES - courtesyUsed;
+  const buttonDisabled = disabled || cooldownRemaining > 0 || isLoading;
 
   return (
-    <GlassCard className="space-y-4">
-      <h3 className="text-lg font-semibold flex items-center gap-2">
-        <Coffee className="w-5 h-5 text-primary" />
-        Nespresso
-        {disabled && <span className="text-xs text-muted-foreground">(desabilitado)</span>}
-      </h3>
+    <>
+      <GlassCard className="space-y-4">
+        <h3 className="text-lg font-semibold flex items-center gap-2">
+          <Sparkles className="w-5 h-5 text-primary" />
+          Cafeteria Isis
+          {disabled && <span className="text-xs text-muted-foreground">(desabilitado)</span>}
+        </h3>
 
-      {/* Cooldown Timer */}
-      {cooldownRemaining > 0 && (
-        <div className="flex items-center gap-2 p-3 bg-warning/10 border border-warning/30 rounded-lg">
-          <Loader2 className="w-4 h-4 animate-spin text-warning" />
-          <span className="text-sm text-warning">
-            Aquecendo máquina... {cooldownRemaining}s
-          </span>
-        </div>
-      )}
+        {/* Cooldown Timer */}
+        {cooldownRemaining > 0 && (
+          <div className="flex items-center gap-2 p-3 bg-warning/10 border border-warning/30 rounded-lg">
+            <Loader2 className="w-4 h-4 animate-spin text-warning" />
+            <span className="text-sm text-warning">
+              Preparando café... {cooldownRemaining}s
+            </span>
+          </div>
+        )}
 
-      {/* Success Message */}
-      {lastRequestSuccess && (
-        <div className="flex items-center gap-2 p-3 bg-success/10 border border-success/30 rounded-lg">
-          <CheckCircle className="w-4 h-4 text-success" />
-          <span className="text-sm text-success">Café em preparação!</span>
-        </div>
-      )}
+        {/* Success Message */}
+        {lastRequestSuccess && (
+          <div className="flex items-center gap-2 p-3 bg-success/10 border border-success/30 rounded-lg">
+            <CheckCircle className="w-4 h-4 text-success" />
+            <span className="text-sm text-success">Máquina liberada! Aproveite seu café.</span>
+          </div>
+        )}
 
-      <div className="flex gap-3">
-        {/* Courtesy Coffee Button */}
-        <Button
-          variant={courtesyUsed >= MAX_COURTESY_COFFEES ? "outline" : "glass"}
-          className="flex-1 h-14 flex-col gap-1"
-          onClick={() => handlePrepareCoffee("courtesy")}
-          disabled={courtesyDisabled}
-        >
-          {isLoading ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
-          ) : (
-            <>
-              <div className="flex items-center gap-2">
-                <Gift className="w-4 h-4" />
-                <span className="text-sm">Café Cortesia</span>
-              </div>
-              <span className="text-xs text-muted-foreground">
-                {courtesyUsed}/{MAX_COURTESY_COFFEES} utilizados
-              </span>
-            </>
+        {/* Coffee Options */}
+        <div className="space-y-3">
+          {/* Courtesy Coffee - Show if has courtesy remaining */}
+          {hasCourtesy && (
+            <Button
+              variant="glass"
+              className="w-full h-14 flex items-center justify-between px-4"
+              onClick={() => handlePrepareCoffee("courtesy")}
+              disabled={buttonDisabled}
+            >
+              {isLoading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary/20 rounded-full">
+                      <Gift className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-medium">Liberar Café Cortesia</p>
+                      <p className="text-xs text-muted-foreground">
+                        Restam {courtesyRemaining} de {MAX_COURTESY_COFFEES}
+                      </p>
+                    </div>
+                  </div>
+                  <Coffee className="w-5 h-5 text-primary" />
+                </>
+              )}
+            </Button>
           )}
-        </Button>
 
-        {/* Extra Coffee Button */}
-        <Button
-          variant="glass"
-          className="flex-1 h-14 flex-col gap-1"
-          onClick={() => handlePrepareCoffee("extra")}
-          disabled={extraDisabled}
-        >
-          {isLoading ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
-          ) : (
-            <>
-              <div className="flex items-center gap-2">
-                <CreditCard className="w-4 h-4" />
-                <span className="text-sm">Café Extra</span>
+          {/* Buy Coffee - Show if no courtesy or as additional option */}
+          <Button
+            variant={hasCourtesy ? "outline" : "glass"}
+            className="w-full h-14 flex items-center justify-between px-4"
+            onClick={handleBuyCoffee}
+            disabled={disabled}
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-accent/20 rounded-full">
+                <CreditCard className="w-4 h-4 text-accent" />
               </div>
-              <span className="text-xs text-muted-foreground">R$ 5,00</span>
-            </>
-          )}
-        </Button>
-      </div>
-    </GlassCard>
+              <div className="text-left">
+                <p className="text-sm font-medium">
+                  {hasCourtesy ? "Comprar Café Adicional" : "Comprar Café"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  R$ {COFFEE_PRICE.toFixed(2)} via PIX
+                </p>
+              </div>
+            </div>
+            <Coffee className="w-5 h-5" />
+          </Button>
+        </div>
+
+        {/* Info */}
+        <p className="text-xs text-center text-muted-foreground">
+          Nespresso • Cápsulas variadas disponíveis
+        </p>
+      </GlassCard>
+
+      {/* PIX Payment Modal */}
+      <PixPaymentModal
+        open={showPixModal}
+        onOpenChange={setShowPixModal}
+        amount={COFFEE_PRICE}
+        description="Café Extra - Smart Room Office"
+        onPaymentConfirmed={handlePixPaymentConfirmed}
+      />
+    </>
   );
 }
