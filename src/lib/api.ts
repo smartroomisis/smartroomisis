@@ -2,7 +2,6 @@ import { supabase } from "@/integrations/supabase/client";
 
 // N8N Webhook Configuration
 export const N8N_WEBHOOK_URL = "https://construens.app.n8n.cloud/webhook";
-export const N8N_WEBHOOK_TEST_URL = "https://construens.app.n8n.cloud/webhook-test";
 
 // Authorization Token (easy to change later)
 export const AUTH_TOKEN = "SECRET_TOKEN_SJC";
@@ -24,8 +23,8 @@ export const N8N_WEBHOOKS = {
 };
 
 // Pricing Configuration
-export const CAPSULE_COST = 2.50; // Cost per coffee capsule
-export const CLEANING_FEE = 30.00; // Fixed cleaning fee
+export const CAPSULE_COST = 2.50;
+export const CLEANING_FEE = 30.00;
 
 // Staff list
 export const STAFF_LIST = [
@@ -43,7 +42,7 @@ export const ERROR_MESSAGES = {
   GENERIC: "Ocorreu um erro. Tente novamente.",
 };
 
-// Validate reservation via Airtable before unlocking door
+// Reservation Validation Interface
 export interface ReservationValidation {
   valid: boolean;
   reservation_id?: string;
@@ -58,50 +57,137 @@ export interface ReservationValidation {
   error?: string;
 }
 
+// Validate reservation directly via Supabase
 export async function validateReservation(
-  userId?: string, 
+  userId?: string,
   userEmail?: string
 ): Promise<ReservationValidation> {
   try {
-    const { data, error } = await supabase.functions.invoke('validate-reservation', {
-      body: { user_id: userId, user_email: userEmail },
-    });
+    const now = new Date();
+    const todayStr = now.toISOString().split("T")[0];
+    const currentTime = now.toTimeString().slice(0, 5); // HH:MM
 
-    if (error) {
-      console.error('Reservation validation error:', error);
-      return { valid: false, error: ERROR_MESSAGES.ACCESS_DENIED };
+    // Build query for active reservations today
+    let query = supabase
+      .from("reservations")
+      .select("*")
+      .eq("date", todayStr)
+      .in("status", ["confirmed", "active", "ativo", "confirmado", "em uso"]);
+
+    if (userId && userId !== "current_user_id") {
+      query = query.eq("user_id", userId);
+    } else if (userEmail) {
+      query = query.eq("client_email", userEmail);
     }
 
-    return data as ReservationValidation;
+    const { data: reservations, error } = await query;
+
+    if (error) {
+      console.error("Error fetching reservations:", error);
+      return { valid: false, error: ERROR_MESSAGES.CONNECTION };
+    }
+
+    // Find reservation within current time (with 10min tolerance)
+    const validRes = reservations?.find((res) => {
+      const start = res.start_time; // HH:MM:SS
+      const end = res.end_time;
+
+      // Add 10 min tolerance: parse times and compare
+      const startParts = start.split(":").map(Number);
+      const endParts = end.split(":").map(Number);
+      const nowParts = currentTime.split(":").map(Number);
+
+      const startMin = startParts[0] * 60 + startParts[1] - 10;
+      const endMin = endParts[0] * 60 + endParts[1] + 10;
+      const nowMin = nowParts[0] * 60 + nowParts[1];
+
+      return nowMin >= startMin && nowMin <= endMin;
+    });
+
+    if (validRes) {
+      return {
+        valid: true,
+        reservation_id: validRes.id,
+        client_name: validRes.client_name,
+        access_code: validRes.access_code,
+        room_name: validRes.room_id === ROOM_ID ? ROOM_NAME : validRes.room_id,
+        start_time: `${validRes.date}T${validRes.start_time}`,
+        end_time: `${validRes.date}T${validRes.end_time}`,
+        status: validRes.status,
+      };
+    }
+
+    // Check for upcoming reservations today
+    const upcoming = reservations?.find((res) => {
+      const startParts = res.start_time.split(":").map(Number);
+      const nowParts = currentTime.split(":").map(Number);
+      const startMin = startParts[0] * 60 + startParts[1];
+      const nowMin = nowParts[0] * 60 + nowParts[1];
+      return startMin > nowMin;
+    });
+
+    if (upcoming) {
+      return {
+        valid: false,
+        has_upcoming: true,
+        next_start_time: `${upcoming.date}T${upcoming.start_time}`,
+        client_name: upcoming.client_name,
+        error: `Acesso disponível apenas no horário da reserva (${upcoming.start_time.slice(0, 5)})`,
+      };
+    }
+
+    return { valid: false, error: "Nenhuma reserva ativa encontrada para este horário" };
   } catch (err) {
-    console.error('Failed to validate reservation:', err);
+    console.error("Failed to validate reservation:", err);
     return { valid: false, error: ERROR_MESSAGES.CONNECTION };
   }
 }
 
-// Update reservation status in Airtable
+// Update reservation status directly in Supabase
 export async function updateReservationStatus(
   reservationId: string,
   newStatus: string = "Em uso"
 ): Promise<{ success: boolean }> {
   try {
-    const { data, error } = await supabase.functions.invoke('update-reservation-status', {
-      body: { reservation_id: reservationId, new_status: newStatus },
-    });
+    const { error } = await supabase
+      .from("reservations")
+      .update({ status: newStatus })
+      .eq("id", reservationId);
 
     if (error) {
-      console.error('Failed to update reservation status:', error);
+      console.error("Failed to update reservation status:", error);
       return { success: false };
     }
 
-    return { success: data?.success ?? true };
+    return { success: true };
   } catch (err) {
-    console.error('Error updating reservation status:', err);
+    console.error("Error updating reservation status:", err);
     return { success: false };
   }
 }
 
-// Create reservation via n8n webhook (for SR-OP Airtable validation)
+// Get user credit hours from profiles table
+export async function getUserCreditHours(userId: string): Promise<number> {
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("credit_hours")
+      .eq("id", userId)
+      .single();
+
+    if (error || !data) {
+      console.error("Error fetching credit hours:", error);
+      return 0;
+    }
+
+    return data.credit_hours || 0;
+  } catch (err) {
+    console.error("Failed to fetch credit hours:", err);
+    return 0;
+  }
+}
+
+// Create reservation via n8n webhook
 export interface CreateReservationPayload {
   user_id: string;
   user_email: string;
@@ -134,7 +220,7 @@ export async function createReservation(
     });
     return result;
   } catch (err) {
-    console.error('Failed to create reservation:', err);
+    console.error("Failed to create reservation:", err);
     return { success: false, error: ERROR_MESSAGES.CONNECTION };
   }
 }
@@ -160,7 +246,7 @@ async function apiCall<T>(
     method,
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${AUTH_TOKEN}`,
+      Authorization: `Bearer ${AUTH_TOKEN}`,
     },
   };
 
@@ -177,7 +263,6 @@ async function apiCall<T>(
     throw new Error(ERROR_MESSAGES.CONNECTION);
   }
 
-  // Handle empty responses
   const text = await response.text();
   if (!text) {
     return { success: true } as T;
@@ -196,7 +281,7 @@ async function apiGet<T>(endpoint: string): Promise<T> {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${AUTH_TOKEN}`,
+      Authorization: `Bearer ${AUTH_TOKEN}`,
     },
   });
 
@@ -212,9 +297,9 @@ async function apiGet<T>(endpoint: string): Promise<T> {
   return JSON.parse(text);
 }
 
-// Door Control API - with Airtable reservation validation
+// Door Control API
 export async function unlockDoor(
-  userId: string, 
+  userId: string,
   userEmail?: string,
   reservationId?: string,
   clientName?: string
@@ -260,18 +345,21 @@ export async function controlHVAC(
   });
 }
 
-// Turn off hardware (AC and TV) and trigger session closure webhook - called on reservation end
+// Turn off hardware and trigger session closure
 export async function triggerSessionClosure(
   reservationId: string,
   clientName?: string,
   endTime?: string
 ): Promise<{ success: boolean }> {
+  // Also update reservation status in Supabase
+  await updateReservationStatus(reservationId, "Aguardando Limpeza");
+
   return apiCall(N8N_WEBHOOKS.SESSION_CLOSURE, {
     room_id: ROOM_ID,
     reservation_id: reservationId,
     client_name: clientName,
     end_time: endTime,
-    actions: ["turn_off_ac", "turn_off_tv", "update_airtable"],
+    actions: ["turn_off_ac", "turn_off_tv"],
     new_status: "Aguardando Limpeza",
     reason: "reservation_ended",
     timestamp: new Date().toISOString(),
@@ -295,10 +383,9 @@ export interface RoomStatus {
   lastUpdated: string;
 }
 
-// Fetch Room Status from n8n (GET request for polling)
+// Fetch Room Status from n8n
 export async function fetchRoomStatus(): Promise<RoomStatus> {
   try {
-    // Try to get status from n8n
     const data = await apiGet<RoomStatus>(`${N8N_WEBHOOKS.ROOM_STATUS}?room_id=${ROOM_ID}`);
     return {
       isOccupied: data.isOccupied ?? true,
@@ -309,7 +396,6 @@ export async function fetchRoomStatus(): Promise<RoomStatus> {
       lastUpdated: new Date().toISOString(),
     };
   } catch {
-    // Fallback to mock data if endpoint not configured
     return {
       isOccupied: true,
       isReady: true,
@@ -321,7 +407,7 @@ export async function fetchRoomStatus(): Promise<RoomStatus> {
   }
 }
 
-// Services API - Coffee with reservation tracking
+// Coffee service
 export async function requestCoffee(
   reservationId?: string,
   type: "courtesy" | "extra" = "courtesy"
@@ -335,13 +421,13 @@ export async function requestCoffee(
 }
 
 export async function requestCleaning(): Promise<{ success: boolean }> {
-  return apiCall(`${N8N_WEBHOOK_TEST_URL}/request-service`, {
+  return apiCall(`${N8N_WEBHOOK_URL}/request-service`, {
     service: "cleaning",
     room_id: ROOM_ID,
   });
 }
 
-// Enhanced Staff Audit API with photos and costs
+// Staff Audit
 export interface StaffAuditData {
   room_id: string;
   reservation_id: string;
@@ -355,10 +441,9 @@ export interface StaffAuditData {
 }
 
 export async function submitStaffAudit(data: StaffAuditData): Promise<{ success: boolean }> {
-  // Calculate costs
   const capsulesUsed = 20 - data.coffee_capsules_remaining;
   const insumosCost = capsulesUsed * CAPSULE_COST;
-  
+
   const payload = {
     ...data,
     capsules_used: capsulesUsed,
@@ -367,7 +452,7 @@ export async function submitStaffAudit(data: StaffAuditData): Promise<{ success:
     total_cost: insumosCost + CLEANING_FEE,
     submitted_at: new Date().toISOString(),
   };
-  
+
   return apiCall(N8N_WEBHOOKS.STAFF_AUDIT, payload as unknown as Record<string, unknown>);
 }
 
@@ -391,26 +476,26 @@ export interface FinancialSummary {
   expensesByCategory: Record<string, number>;
 }
 
-export async function createExpense(expense: Omit<Expense, 'id'>): Promise<{ success: boolean }> {
-  const { data, error } = await supabase.functions.invoke('manage-expenses', {
-    body: { ...expense, action: 'create' },
+export async function createExpense(expense: Omit<Expense, "id">): Promise<{ success: boolean }> {
+  const { data, error } = await supabase.functions.invoke("manage-expenses", {
+    body: { ...expense, action: "create" },
   });
 
   if (error) {
-    console.error('Failed to create expense:', error);
-    throw new Error('Erro ao registrar despesa');
+    console.error("Failed to create expense:", error);
+    throw new Error("Erro ao registrar despesa");
   }
 
   return data;
 }
 
 export async function fetchExpenses(): Promise<Expense[]> {
-  const { data, error } = await supabase.functions.invoke('manage-expenses', {
-    body: { action: 'list' },
+  const { data, error } = await supabase.functions.invoke("manage-expenses", {
+    body: { action: "list" },
   });
 
   if (error) {
-    console.error('Failed to fetch expenses:', error);
+    console.error("Failed to fetch expenses:", error);
     return [];
   }
 
@@ -418,19 +503,19 @@ export async function fetchExpenses(): Promise<Expense[]> {
 }
 
 export async function fetchFinancialSummary(): Promise<FinancialSummary | null> {
-  const { data, error } = await supabase.functions.invoke('manage-expenses', {
-    body: { action: 'summary' },
+  const { data, error } = await supabase.functions.invoke("manage-expenses", {
+    body: { action: "summary" },
   });
 
   if (error) {
-    console.error('Failed to fetch financial summary:', error);
+    console.error("Failed to fetch financial summary:", error);
     return null;
   }
 
   return data?.summary || null;
 }
 
-// Get last reservation for staff cleaning
+// Get last reservation for staff cleaning (directly from Supabase)
 export interface LastReservation {
   success: boolean;
   reservation_id?: string;
@@ -443,18 +528,36 @@ export interface LastReservation {
 
 export async function getLastReservation(): Promise<LastReservation> {
   try {
-    const { data, error } = await supabase.functions.invoke('validate-reservation?action=get-last-reservation', {
-      method: 'GET',
-    });
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+
+    const { data, error } = await supabase
+      .from("reservations")
+      .select("*")
+      .or("status.eq.Aguardando Limpeza,status.eq.concluído,status.eq.finalizado")
+      .gte("updated_at", twoHoursAgo)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
     if (error) {
-      console.error('Failed to get last reservation:', error);
-      return { success: false, error: 'Erro ao buscar última reserva' };
+      console.error("Failed to get last reservation:", error);
+      return { success: false, error: "Erro ao buscar última reserva" };
     }
 
-    return data as LastReservation;
+    if (!data) {
+      return { success: false, error: "Nenhuma reserva recente encontrada para limpeza" };
+    }
+
+    return {
+      success: true,
+      reservation_id: data.id,
+      client_name: data.client_name,
+      room_name: data.room_id === ROOM_ID ? ROOM_NAME : data.room_id,
+      end_time: `${data.date}T${data.end_time}`,
+      status: data.status,
+    };
   } catch (err) {
-    console.error('Error getting last reservation:', err);
-    return { success: false, error: 'Erro de conexão' };
+    console.error("Error getting last reservation:", err);
+    return { success: false, error: "Erro de conexão" };
   }
 }
