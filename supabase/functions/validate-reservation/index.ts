@@ -71,11 +71,11 @@ serve(async (req) => {
     const AIRTABLE_BASE_ID = Deno.env.get('AIRTABLE_BASE_ID');
     
     if (!AIRTABLE_API_KEY || !AIRTABLE_BASE_ID) {
-      console.error('Missing Airtable configuration');
+      console.error('Missing reservation backend configuration');
       return new Response(
         JSON.stringify({ 
           valid: false, 
-          error: 'Configuração do Airtable não encontrada' 
+          error: 'Service temporarily unavailable' 
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
