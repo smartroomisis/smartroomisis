@@ -235,7 +235,7 @@ serve(async (req) => {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     console.error('[manage-expenses] Error:', errorMessage)
     return new Response(
-      JSON.stringify({ success: false, error: errorMessage }),
+      JSON.stringify({ success: false, error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
