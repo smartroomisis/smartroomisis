@@ -129,8 +129,8 @@ serve(async (req) => {
 
       if (!airtableResponse.ok) {
         const errorText = await airtableResponse.text()
-        console.error('[manage-expenses] Airtable error:', errorText)
-        throw new Error('Failed to fetch expenses from Airtable')
+        console.error('[manage-expenses] Upstream error:', errorText)
+        throw new Error('Failed to fetch expenses')
       }
 
       const result = await airtableResponse.json()
