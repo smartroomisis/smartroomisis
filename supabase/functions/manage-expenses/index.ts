@@ -67,8 +67,8 @@ serve(async (req) => {
     console.log(`[manage-expenses] Action: ${action}`)
 
     if (!AIRTABLE_API_KEY || !AIRTABLE_BASE_ID) {
-      console.error('[manage-expenses] Missing Airtable credentials')
-      throw new Error('Airtable credentials not configured')
+      console.error('[manage-expenses] Missing backend credentials')
+      throw new Error('Service temporarily unavailable')
     }
 
     const airtableUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_TABLE_NAME)}`
@@ -104,8 +104,8 @@ serve(async (req) => {
 
       if (!airtableResponse.ok) {
         const errorText = await airtableResponse.text()
-        console.error('[manage-expenses] Airtable error:', errorText)
-        throw new Error('Failed to create expense in Airtable')
+        console.error('[manage-expenses] Upstream error:', errorText)
+        throw new Error('Failed to create expense')
       }
 
       const result = await airtableResponse.json()
@@ -129,8 +129,8 @@ serve(async (req) => {
 
       if (!airtableResponse.ok) {
         const errorText = await airtableResponse.text()
-        console.error('[manage-expenses] Airtable error:', errorText)
-        throw new Error('Failed to fetch expenses from Airtable')
+        console.error('[manage-expenses] Upstream error:', errorText)
+        throw new Error('Failed to fetch expenses')
       }
 
       const result = await airtableResponse.json()
@@ -235,7 +235,7 @@ serve(async (req) => {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     console.error('[manage-expenses] Error:', errorMessage)
     return new Response(
-      JSON.stringify({ success: false, error: errorMessage }),
+      JSON.stringify({ success: false, error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }

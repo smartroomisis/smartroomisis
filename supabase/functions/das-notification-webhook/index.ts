@@ -68,12 +68,21 @@ serve(async (req: Request) => {
     console.log('Sending to n8n webhook:', N8N_WEBHOOK_URL);
     console.log('Payload:', JSON.stringify(notificationPayload, null, 2));
 
+    const webhookToken = Deno.env.get('N8N_WEBHOOK_TOKEN');
+    if (!webhookToken) {
+      console.error('N8N_WEBHOOK_TOKEN not configured');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Service temporarily unavailable' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Send to n8n webhook
     const webhookResponse = await fetch(N8N_WEBHOOK_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${Deno.env.get('N8N_WEBHOOK_TOKEN') || 'SECRET_TOKEN_SJC'}`,
+        'Authorization': `Bearer ${webhookToken}`,
       },
       body: JSON.stringify(notificationPayload),
     });
@@ -92,10 +101,9 @@ serve(async (req: Request) => {
     );
 
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error in das-notification-webhook:', error);
     return new Response(
-      JSON.stringify({ success: false, error: errorMessage }),
+      JSON.stringify({ success: false, error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
