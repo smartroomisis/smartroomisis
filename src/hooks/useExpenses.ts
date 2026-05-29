@@ -170,7 +170,7 @@ export function useExpenses() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return false;
 
-      const updateData: Record<string, any> = { status };
+      const updateData: any = { status };
 
       if (status === "approved") {
         updateData.approved_by = user.id;
