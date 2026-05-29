@@ -104,8 +104,8 @@ serve(async (req) => {
 
       if (!airtableResponse.ok) {
         const errorText = await airtableResponse.text()
-        console.error('[manage-expenses] Airtable error:', errorText)
-        throw new Error('Failed to create expense in Airtable')
+        console.error('[manage-expenses] Upstream error:', errorText)
+        throw new Error('Failed to create expense')
       }
 
       const result = await airtableResponse.json()
