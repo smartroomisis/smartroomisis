@@ -8,8 +8,8 @@ import { toast } from "@/hooks/use-toast";
 import { controlLights, controlHVAC, activateMeetingMode, ERROR_MESSAGES } from "@/lib/api";
 
 // Debounce timer reference
-let lightsDebounceTimer: NodeJS.Timeout | null = null;
-let hvacDebounceTimer: NodeJS.Timeout | null = null;
+let lightsDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+let hvacDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 interface RoomControlsProps {
   disabled?: boolean;

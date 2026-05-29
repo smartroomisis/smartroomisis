@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
 // N8N Webhook Configuration
-export const N8N_WEBHOOK_URL = "https://construens.app.n8n.cloud/webhook";
+export const N8N_WEBHOOK_URL = "https://smartroom-isis.app.n8n.cloud/webhook";
 
 // Authorization Token (easy to change later)
 export const AUTH_TOKEN = "SECRET_TOKEN_SJC";

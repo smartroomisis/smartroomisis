@@ -157,7 +157,7 @@ export function useStaffAudits() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
-      const updateData: Record<string, any> = { status };
+      const updateData: any = { status };
       
       if (status === "reviewed" && user) {
         updateData.reviewed_at = new Date().toISOString();
