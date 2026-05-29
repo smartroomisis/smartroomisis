@@ -138,6 +138,41 @@ export function useStorage() {
   };
 
   /**
+   * Get a short-lived signed URL for a file in a private bucket.
+   * Accepts either a storage path or a previously stored URL (path is extracted).
+   */
+  const getSignedUrl = async (
+    bucket: BucketName,
+    pathOrUrl: string,
+    expiresInSeconds = 3600
+  ): Promise<string | null> => {
+    try {
+      // Extract the storage path if a full URL was stored
+      let path = pathOrUrl;
+      const marker = `/object/public/${bucket}/`;
+      const signedMarker = `/object/sign/${bucket}/`;
+      if (pathOrUrl.includes(marker)) {
+        path = pathOrUrl.split(marker)[1].split("?")[0];
+      } else if (pathOrUrl.includes(signedMarker)) {
+        path = pathOrUrl.split(signedMarker)[1].split("?")[0];
+      }
+
+      const { data, error } = await supabase.storage
+        .from(bucket)
+        .createSignedUrl(path, expiresInSeconds);
+
+      if (error) {
+        console.error("Signed URL error:", error);
+        return null;
+      }
+      return data.signedUrl;
+    } catch (err) {
+      console.error("Signed URL failed:", err);
+      return null;
+    }
+  };
+
+  /**
    * Delete a file from storage
    */
   const deleteFile = async (bucket: BucketName, path: string): Promise<boolean> => {
