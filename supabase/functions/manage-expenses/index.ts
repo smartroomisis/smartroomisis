@@ -67,8 +67,8 @@ serve(async (req) => {
     console.log(`[manage-expenses] Action: ${action}`)
 
     if (!AIRTABLE_API_KEY || !AIRTABLE_BASE_ID) {
-      console.error('[manage-expenses] Missing Airtable credentials')
-      throw new Error('Airtable credentials not configured')
+      console.error('[manage-expenses] Missing backend credentials')
+      throw new Error('Service temporarily unavailable')
     }
 
     const airtableUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_TABLE_NAME)}`
