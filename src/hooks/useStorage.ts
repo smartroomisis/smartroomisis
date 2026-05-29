@@ -193,6 +193,7 @@ export function useStorage() {
     uploadFile,
     uploadFiles,
     uploadBase64Images,
+    getSignedUrl,
     deleteFile,
     base64ToFile,
     isUploading,
