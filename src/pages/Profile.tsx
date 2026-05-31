@@ -11,7 +11,9 @@ import {
   CreditCard, 
   LogOut,
   Loader2,
-  Crown
+  Crown,
+  CalendarDays,
+  Clock
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,16 +23,69 @@ interface EnterpriseCompany {
   email_domain: string;
 }
 
+interface UserReservation {
+  id: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  hours: number;
+  status: string;
+}
+
 export default function Profile() {
   const { user, profile, isEnterprise, signOut, loading } = useAuth();
   const [company, setCompany] = useState<EnterpriseCompany | null>(null);
   const [loadingCompany, setLoadingCompany] = useState(false);
+  const [reservations, setReservations] = useState<UserReservation[]>([]);
+  const [loadingReservations, setLoadingReservations] = useState(false);
 
   useEffect(() => {
     if (profile?.enterprise_company_id) {
       fetchCompany(profile.enterprise_company_id);
     }
   }, [profile?.enterprise_company_id]);
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchReservations(user.id);
+    }
+  }, [user?.id]);
+
+  const fetchReservations = async (userId: string) => {
+    setLoadingReservations(true);
+    try {
+      const { data, error } = await supabase
+        .from("reservations")
+        .select("id, date, start_time, end_time, hours, status")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      if (!error && data) {
+        setReservations(data as UserReservation[]);
+      }
+    } catch (err) {
+      console.error("Error fetching reservations:", err);
+    } finally {
+      setLoadingReservations(false);
+    }
+  };
+
+  const getReservationStatusBadge = (status: string) => {
+    switch (status) {
+      case "confirmed":
+        return <Badge className="bg-success/20 text-success">Confirmada</Badge>;
+      case "cancelled":
+        return <Badge className="bg-destructive/20 text-destructive">Cancelada</Badge>;
+      default:
+        return <Badge className="bg-warning/20 text-warning">Pendente</Badge>;
+    }
+  };
+
+  const formatDate = (dateStr: string) =>
+    new Date(dateStr + "T00:00:00").toLocaleDateString("pt-BR");
+
+  const formatTime = (timeStr: string) => timeStr?.slice(0, 5) ?? "";
 
   const fetchCompany = async (companyId: string) => {
     setLoadingCompany(true);
