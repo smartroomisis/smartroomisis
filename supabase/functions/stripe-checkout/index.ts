@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -23,6 +24,29 @@ serve(async (req) => {
   }
 
   try {
+    // Require an authenticated caller
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const authClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    const { data: claims, error: authError } = await authClient.auth.getClaims(
+      authHeader.replace("Bearer ", "")
+    );
+    if (authError || !claims?.claims) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) {
       throw new Error("Stripe secret key not configured");
@@ -33,7 +57,9 @@ serve(async (req) => {
     });
 
     const body: CheckoutRequest = await req.json();
-    const { hours, price_per_hour, reservation_id, user_email, reservation_date, start_time, end_time } = body;
+    const { hours, price_per_hour, reservation_id, reservation_date, start_time, end_time } = body;
+    // Trust the authenticated identity for the customer email, not client input
+    const user_email = (claims.claims.email as string) || body.user_email;
 
     const totalAmount = Math.round(hours * price_per_hour * 100); // Convert to cents
 
