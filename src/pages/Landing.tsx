@@ -286,11 +286,11 @@ const Landing = () => {
                   </div>
                   <ul className="space-y-4 mb-8">
                     {plan.features?.map((feature: string, featureIndex: number) => (
-                      <li key={featureIndex} className="flex items-center gap-3 text-[hsl(210,20%,75%)]">
-                        <div className={`w-5 h-5 rounded-full ${plan.highlighted ? 'bg-[hsl(188,85%,50%)]/30' : 'bg-[hsl(188,85%,50%)]/20'} flex items-center justify-center`}>
+                      <li key={featureIndex} className="flex items-start gap-3 text-[hsl(210,20%,75%)]">
+                        <div className={`mt-0.5 shrink-0 w-5 h-5 rounded-full ${plan.highlighted ? 'bg-[hsl(188,85%,50%)]/30' : 'bg-[hsl(188,85%,50%)]/20'} flex items-center justify-center`}>
                           <Check className={`w-3 h-3 ${plan.highlighted ? 'text-[hsl(188,85%,60%)]' : 'text-[hsl(188,85%,55%)]'}`} />
                         </div>
-                        <span>{feature}</span>
+                        <span className="leading-snug">{feature}</span>
                       </li>
                     ))}
                   </ul>
