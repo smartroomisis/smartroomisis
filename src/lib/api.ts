@@ -2,9 +2,8 @@ import { supabase } from "@/integrations/supabase/client";
 
 // N8N Webhook Configuration
 export const N8N_WEBHOOK_URL = "https://smartroom-isis.app.n8n.cloud/webhook";
-
-// Authorization Token (easy to change later)
-export const AUTH_TOKEN = "SECRET_TOKEN_SJC";
+// NOTE: The n8n bearer token is stored server-side as a Supabase secret (N8N_AUTH_TOKEN)
+// and is only used by the `room-control` edge function. It is never exposed to the client.
 
 // Room Configuration
 export const ROOM_ID = "smart-room-office-01";
@@ -236,65 +235,47 @@ export async function updateRoomStatus(
   });
 }
 
-// Generic API call with error handling and auth header
+// Generic API call routed through the secure `room-control` edge function.
+// The edge function validates the user's JWT and injects the n8n token server-side.
 async function apiCall<T>(
   endpoint: string,
   payload: Record<string, unknown>,
   method: "POST" | "GET" = "POST"
 ): Promise<T> {
-  const options: RequestInit = {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${AUTH_TOKEN}`,
-    },
-  };
+  const { data, error } = await supabase.functions.invoke("room-control", {
+    body: { endpoint, method, payload },
+  });
 
-  if (method === "POST") {
-    options.body = JSON.stringify(payload);
-  }
-
-  const response = await fetch(endpoint, options);
-
-  if (!response.ok) {
-    if (response.status === 401 || response.status === 403) {
+  if (error) {
+    const status = (error as { context?: { status?: number } })?.context?.status;
+    if (status === 401 || status === 403) {
       throw new Error(ERROR_MESSAGES.ACCESS_DENIED);
     }
     throw new Error(ERROR_MESSAGES.CONNECTION);
   }
 
-  const text = await response.text();
-  if (!text) {
+  if (data == null) {
     return { success: true } as T;
   }
 
-  try {
-    return JSON.parse(text);
-  } catch {
-    return { success: true } as T;
-  }
+  return data as T;
 }
 
-// GET request for status polling
+// GET request for status polling (routed through the secure proxy).
 async function apiGet<T>(endpoint: string): Promise<T> {
-  const response = await fetch(endpoint, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${AUTH_TOKEN}`,
-    },
+  const { data, error } = await supabase.functions.invoke("room-control", {
+    body: { endpoint, method: "GET" },
   });
 
-  if (!response.ok) {
+  if (error) {
     throw new Error(ERROR_MESSAGES.CONNECTION);
   }
 
-  const text = await response.text();
-  if (!text) {
+  if (data == null) {
     throw new Error(ERROR_MESSAGES.GENERIC);
   }
 
-  return JSON.parse(text);
+  return data as T;
 }
 
 // Door Control API

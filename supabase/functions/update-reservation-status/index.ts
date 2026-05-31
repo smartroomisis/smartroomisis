@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,6 +13,39 @@ serve(async (req) => {
   }
 
   try {
+    // Require an authenticated admin caller
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const authClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    const { data: claims, error: authError } = await authClient.auth.getClaims(
+      authHeader.replace('Bearer ', '')
+    );
+    if (authError || !claims?.claims) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const { data: isAdmin } = await authClient.rpc('has_role', {
+      _user_id: claims.claims.sub,
+      _role: 'admin',
+    });
+    if (!isAdmin) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Forbidden' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { reservation_id, new_status } = await req.json();
     
     if (!reservation_id) {
@@ -27,9 +61,9 @@ serve(async (req) => {
     const AIRTABLE_BASE_ID = Deno.env.get('AIRTABLE_BASE_ID');
     
     if (!AIRTABLE_API_KEY || !AIRTABLE_BASE_ID) {
-      console.error('Missing Airtable configuration');
+      console.error('Missing reservation backend configuration');
       return new Response(
-        JSON.stringify({ success: false, error: 'Configuração do Airtable não encontrada' }),
+        JSON.stringify({ success: false, error: 'Service configuration error' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
