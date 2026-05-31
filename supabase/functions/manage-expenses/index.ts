@@ -34,6 +34,39 @@ serve(async (req) => {
   }
 
   try {
+    // Require an authenticated admin caller
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    const authClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    )
+    const { data: claims, error: authError } = await authClient.auth.getClaims(
+      authHeader.replace('Bearer ', '')
+    )
+    if (authError || !claims?.claims) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    const { data: isAdmin } = await authClient.rpc('has_role', {
+      _user_id: claims.claims.sub,
+      _role: 'admin',
+    })
+    if (!isAdmin) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Forbidden' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     const url = new URL(req.url)
     // Get action from query param OR body
     let action = url.searchParams.get('action')
