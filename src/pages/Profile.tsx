@@ -207,6 +207,43 @@ export default function Profile() {
           {/* Wallet Balance */}
           <WalletBalance />
 
+          {/* My Reservations */}
+          <GlassCard className="space-y-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <CalendarDays className="w-5 h-5 text-primary" />
+              Minhas Reservas
+            </h3>
+
+            {loadingReservations ? (
+              <div className="flex justify-center py-4">
+                <Loader2 className="w-5 h-5 animate-spin text-primary" />
+              </div>
+            ) : reservations.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhuma reserva encontrada.</p>
+            ) : (
+              <div className="space-y-3">
+                {reservations.map((reservation) => (
+                  <div
+                    key={reservation.id}
+                    className="flex items-center justify-between p-3 rounded-lg bg-secondary/30"
+                  >
+                    <div>
+                      <p className="font-medium text-sm">{formatDate(reservation.date)}</p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {formatTime(reservation.start_time)}–{formatTime(reservation.end_time)}
+                        <span className="ml-1">· {reservation.hours}h</span>
+                      </p>
+                    </div>
+                    {getReservationStatusBadge(reservation.status)}
+                  </div>
+                ))}
+              </div>
+            )}
+          </GlassCard>
+
+
+
           {/* Logout Button */}
           <Button 
             variant="outline" 
