@@ -11,7 +11,9 @@ import {
   CreditCard, 
   LogOut,
   Loader2,
-  Crown
+  Crown,
+  CalendarDays,
+  Clock
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,16 +23,69 @@ interface EnterpriseCompany {
   email_domain: string;
 }
 
+interface UserReservation {
+  id: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  hours: number;
+  status: string;
+}
+
 export default function Profile() {
   const { user, profile, isEnterprise, signOut, loading } = useAuth();
   const [company, setCompany] = useState<EnterpriseCompany | null>(null);
   const [loadingCompany, setLoadingCompany] = useState(false);
+  const [reservations, setReservations] = useState<UserReservation[]>([]);
+  const [loadingReservations, setLoadingReservations] = useState(false);
 
   useEffect(() => {
     if (profile?.enterprise_company_id) {
       fetchCompany(profile.enterprise_company_id);
     }
   }, [profile?.enterprise_company_id]);
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchReservations(user.id);
+    }
+  }, [user?.id]);
+
+  const fetchReservations = async (userId: string) => {
+    setLoadingReservations(true);
+    try {
+      const { data, error } = await supabase
+        .from("reservations")
+        .select("id, date, start_time, end_time, hours, status")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      if (!error && data) {
+        setReservations(data as UserReservation[]);
+      }
+    } catch (err) {
+      console.error("Error fetching reservations:", err);
+    } finally {
+      setLoadingReservations(false);
+    }
+  };
+
+  const getReservationStatusBadge = (status: string) => {
+    switch (status) {
+      case "confirmed":
+        return <Badge className="bg-success/20 text-success">Confirmada</Badge>;
+      case "cancelled":
+        return <Badge className="bg-destructive/20 text-destructive">Cancelada</Badge>;
+      default:
+        return <Badge className="bg-warning/20 text-warning">Pendente</Badge>;
+    }
+  };
+
+  const formatDate = (dateStr: string) =>
+    new Date(dateStr + "T00:00:00").toLocaleDateString("pt-BR");
+
+  const formatTime = (timeStr: string) => timeStr?.slice(0, 5) ?? "";
 
   const fetchCompany = async (companyId: string) => {
     setLoadingCompany(true);
@@ -151,6 +206,43 @@ export default function Profile() {
 
           {/* Wallet Balance */}
           <WalletBalance />
+
+          {/* My Reservations */}
+          <GlassCard className="space-y-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <CalendarDays className="w-5 h-5 text-primary" />
+              Minhas Reservas
+            </h3>
+
+            {loadingReservations ? (
+              <div className="flex justify-center py-4">
+                <Loader2 className="w-5 h-5 animate-spin text-primary" />
+              </div>
+            ) : reservations.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhuma reserva encontrada.</p>
+            ) : (
+              <div className="space-y-3">
+                {reservations.map((reservation) => (
+                  <div
+                    key={reservation.id}
+                    className="flex items-center justify-between p-3 rounded-lg bg-secondary/30"
+                  >
+                    <div>
+                      <p className="font-medium text-sm">{formatDate(reservation.date)}</p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {formatTime(reservation.start_time)}–{formatTime(reservation.end_time)}
+                        <span className="ml-1">· {reservation.hours}h</span>
+                      </p>
+                    </div>
+                    {getReservationStatusBadge(reservation.status)}
+                  </div>
+                ))}
+              </div>
+            )}
+          </GlassCard>
+
+
 
           {/* Logout Button */}
           <Button 

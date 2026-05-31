@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { GlassCard } from "@/components/GlassCard";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   Wallet, 
   Calendar,
@@ -18,22 +19,38 @@ interface Payment {
   description: string;
 }
 
-// Mock data - would come from Supabase in production
-const mockPayments: Payment[] = [
-  { id: "1", date: "2026-01-03", amount: 90, status: "pending", description: "Limpeza - 3 reservas" },
-  { id: "2", date: "2025-12-27", amount: 150, status: "paid", description: "Limpeza - 5 reservas" },
-  { id: "3", date: "2025-12-20", amount: 120, status: "paid", description: "Limpeza - 4 reservas" },
-  { id: "4", date: "2025-12-13", amount: 90, status: "paid", description: "Limpeza - 3 reservas" },
-];
-
 export default function StaffPayments() {
-  const { profile } = useAuth();
+  const { user } = useAuth();
   const [payments, setPayments] = useState<Payment[]>([]);
 
   useEffect(() => {
-    // In production, fetch from Supabase based on staff user
-    setPayments(mockPayments);
-  }, []);
+    if (!user) return;
+
+    const fetchPayments = async () => {
+      const { data, error } = await supabase
+        .from("staff_payments")
+        .select("id, amount, status, description, payment_date, created_at")
+        .eq("staff_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching staff payments:", error);
+        return;
+      }
+
+      setPayments(
+        (data ?? []).map((p) => ({
+          id: p.id,
+          date: p.payment_date ?? p.created_at,
+          amount: Number(p.amount) || 0,
+          status: p.status === "paid" ? "paid" : "pending",
+          description: p.description ?? "",
+        }))
+      );
+    };
+
+    fetchPayments();
+  }, [user]);
 
   const totalPending = payments
     .filter(p => p.status === "pending")
