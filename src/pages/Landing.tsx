@@ -267,20 +267,30 @@ const Landing = () => {
                       MAIS POPULAR
                     </div>
                   )}
-                  <div className="text-center mb-8">
-                    <h3 className="font-semibold text-2xl mb-1 text-white">{plan.name}</h3>
-                    <p className="text-sm text-[hsl(210,15%,55%)]">{plan.period}</p>
+                  <div className="text-center mb-6">
+                    <h3 className="font-semibold text-2xl mb-2 text-white">{plan.name}</h3>
+                    {plan.subtitle && (
+                      <p className="text-sm text-[hsl(210,20%,70%)] max-w-[260px] mx-auto leading-snug">{plan.subtitle}</p>
+                    )}
                   </div>
                   <div className="text-center mb-8">
-                    <span className="text-5xl font-bold text-white">{plan.price}</span>
+                    <div className="flex items-baseline justify-center gap-1">
+                      <span className="text-5xl font-bold text-white">{plan.price}</span>
+                      <span className="text-sm text-[hsl(210,15%,55%)]">{plan.period}</span>
+                    </div>
+                    {plan.badge && (
+                      <span className="inline-block mt-3 text-xs font-medium text-[hsl(188,85%,55%)] bg-[hsl(188,85%,50%)]/10 border border-[hsl(188,85%,50%)]/30 px-3 py-1 rounded-full">
+                        {plan.badge}
+                      </span>
+                    )}
                   </div>
                   <ul className="space-y-4 mb-8">
                     {plan.features?.map((feature: string, featureIndex: number) => (
-                      <li key={featureIndex} className="flex items-center gap-3 text-[hsl(210,20%,75%)]">
-                        <div className={`w-5 h-5 rounded-full ${plan.highlighted ? 'bg-[hsl(188,85%,50%)]/30' : 'bg-[hsl(188,85%,50%)]/20'} flex items-center justify-center`}>
+                      <li key={featureIndex} className="flex items-start gap-3 text-[hsl(210,20%,75%)]">
+                        <div className={`mt-0.5 shrink-0 w-5 h-5 rounded-full ${plan.highlighted ? 'bg-[hsl(188,85%,50%)]/30' : 'bg-[hsl(188,85%,50%)]/20'} flex items-center justify-center`}>
                           <Check className={`w-3 h-3 ${plan.highlighted ? 'text-[hsl(188,85%,60%)]' : 'text-[hsl(188,85%,55%)]'}`} />
                         </div>
-                        <span>{feature}</span>
+                        <span className="leading-snug">{feature}</span>
                       </li>
                     ))}
                   </ul>
