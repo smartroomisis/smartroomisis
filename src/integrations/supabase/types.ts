@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      blocked_slots: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          date: string
+          end_time: string
+          id: string
+          reason: string | null
+          start_time: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          date: string
+          end_time: string
+          id?: string
+          reason?: string | null
+          start_time: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          end_time?: string
+          id?: string
+          reason?: string | null
+          start_time?: string
+        }
+        Relationships: []
+      }
       credit_transactions: {
         Row: {
           amount: number
