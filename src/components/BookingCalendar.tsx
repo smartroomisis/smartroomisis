@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { GlassCard } from "@/components/GlassCard";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { getSystemConfig } from "@/components/SystemSettings";
 import { validateCoupon, useCoupon } from "@/components/CouponManager";
 import { SmartCheckout } from "@/components/SmartCheckout";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 const timeSlots = [
   { time: "08:00", available: true },
