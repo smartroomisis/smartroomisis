@@ -521,7 +521,8 @@ export default function Staff() {
               </>
             )}
           </Button>
-        </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
