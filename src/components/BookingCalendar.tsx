@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { GlassCard } from "@/components/GlassCard";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { getSystemConfig } from "@/components/SystemSettings";
 import { validateCoupon, useCoupon } from "@/components/CouponManager";
 import { SmartCheckout } from "@/components/SmartCheckout";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 const timeSlots = [
   { time: "08:00", available: true },
@@ -72,9 +73,38 @@ export function BookingCalendar() {
   const [showCheckout, setShowCheckout] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(null);
+  const [blockedTimes, setBlockedTimes] = useState<string[]>([]);
 
   const { profile } = useAuth();
   const config = getSystemConfig();
+
+  useEffect(() => {
+    if (!date) {
+      setBlockedTimes([]);
+      return;
+    }
+    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    supabase
+      .from("blocked_slots")
+      .select("start_time, end_time")
+      .eq("date", dateStr)
+      .then(({ data }) => {
+        if (!data) {
+          setBlockedTimes([]);
+          return;
+        }
+        const blocked: string[] = [];
+        data.forEach((b) => {
+          const startHour = parseInt(b.start_time.slice(0, 2), 10);
+          const endHour = parseInt(b.end_time.slice(0, 2), 10);
+          for (let h = startHour; h < endHour; h++) {
+            blocked.push(`${String(h).padStart(2, "0")}:00`);
+          }
+        });
+        setBlockedTimes(blocked);
+        setSelectedSlots((prev) => prev.filter((t) => !blocked.includes(t)));
+      });
+  }, [date]);
 
   const toggleSlot = (time: string) => {
     setSelectedSlots((prev) =>
@@ -173,15 +203,19 @@ export function BookingCalendar() {
         <GlassCard>
           <h3 className="text-lg font-semibold mb-4">Horários Disponíveis</h3>
           <div className="grid grid-cols-3 gap-2">
-            {timeSlots.map((slot) => (
+            {timeSlots.map((slot) => {
+              const isBlocked = blockedTimes.includes(slot.time);
+              const available = slot.available && !isBlocked;
+              return (
               <button
                 key={slot.time}
-                onClick={() => slot.available && toggleSlot(slot.time)}
-                disabled={!slot.available}
+                onClick={() => available && toggleSlot(slot.time)}
+                disabled={!available}
+                title={isBlocked ? "Horário bloqueado" : undefined}
                 className={cn(
                   "p-3 rounded-lg text-sm font-medium transition-all duration-200",
-                  !slot.available && "bg-muted text-muted-foreground opacity-50 cursor-not-allowed",
-                  slot.available &&
+                  !available && "bg-muted text-muted-foreground opacity-50 cursor-not-allowed",
+                  available &&
                     !selectedSlots.includes(slot.time) &&
                     "bg-secondary hover:bg-secondary/80 text-secondary-foreground",
                   selectedSlots.includes(slot.time) &&
@@ -190,7 +224,8 @@ export function BookingCalendar() {
               >
                 {slot.time}
               </button>
-            ))}
+              );
+            })}
           </div>
           {config.minimumHours > 1 && (
             <p className="text-xs text-muted-foreground mt-3">

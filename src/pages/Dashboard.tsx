@@ -27,14 +27,42 @@ export default function Dashboard() {
     handleReservationExpiry
   } = useRoomStatus();
 
-  const { profile, isEnterprise } = useAuth();
+  const { profile, isEnterprise, user } = useAuth();
   const [companyName, setCompanyName] = useState<string | null>(null);
+  const [nextReservation, setNextReservation] = useState<{ date: string; start_time: string } | null>(null);
 
   useEffect(() => {
     if (profile?.enterprise_company_id) {
       fetchCompanyName(profile.enterprise_company_id);
     }
   }, [profile?.enterprise_company_id]);
+
+  useEffect(() => {
+    if (noActiveReservation && user?.id) {
+      fetchNextReservation(user.id);
+    } else {
+      setNextReservation(null);
+    }
+  }, [noActiveReservation, user?.id]);
+
+  const fetchNextReservation = async (userId: string) => {
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const { data } = await supabase
+        .from("reservations")
+        .select("date, start_time")
+        .eq("user_id", userId)
+        .eq("status", "confirmed")
+        .gte("date", today)
+        .order("date", { ascending: true })
+        .order("start_time", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      setNextReservation(data ?? null);
+    } catch (err) {
+      console.error("Error fetching next reservation:", err);
+    }
+  };
 
   const fetchCompanyName = async (companyId: string) => {
     try {
@@ -107,6 +135,25 @@ export default function Dashboard() {
         <div className="mb-5">
           <WalletBalance />
         </div>
+
+        {/* Next upcoming reservation */}
+        {noActiveReservation && nextReservation && (
+          <GlassCard className="mb-5 bg-primary/5 border-primary/30">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-full bg-primary/10">
+                <Clock className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Sua próxima reserva</p>
+                <p className="font-semibold text-primary">
+                  {new Date(`${nextReservation.date}T00:00:00`).toLocaleDateString("pt-BR")} às {nextReservation.start_time.slice(0, 5)}
+                </p>
+              </div>
+            </div>
+          </GlassCard>
+        )}
+
+
 
         {/* No Active Reservation Message */}
         {!isLoading && noActiveReservation && !isExpired && (

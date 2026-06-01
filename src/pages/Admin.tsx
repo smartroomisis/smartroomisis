@@ -20,6 +20,7 @@ import { AdminReservationCalendar } from "@/components/AdminReservationCalendar"
 import { LandingPageEditor } from "@/components/LandingPageEditor";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { 
   Zap, 
@@ -73,8 +74,8 @@ export default function Admin() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <div className="overflow-x-auto pb-2 -mx-4 px-4">
-            <TabsList className="inline-flex h-auto p-1 gap-1 bg-muted/50 rounded-lg min-w-max">
+          <ScrollArea className="w-full whitespace-nowrap pb-2 -mx-4 px-4">
+            <TabsList className="inline-flex h-auto p-1 gap-1 bg-muted/50 rounded-lg min-w-max w-max">
               <TabsTrigger value="reservations" className="flex items-center gap-2 px-3 py-2 text-sm whitespace-nowrap">
                 <Calendar className="w-4 h-4" />
                 Reservas
@@ -120,7 +121,8 @@ export default function Admin() {
                 Config
               </TabsTrigger>
             </TabsList>
-          </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
 
           {/* Reservations Calendar Tab */}
           <TabsContent value="reservations" className="space-y-6">
