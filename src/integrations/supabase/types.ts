@@ -289,6 +289,7 @@ export type Database = {
       reservations: {
         Row: {
           access_code: string | null
+          checked_in_at: string | null
           client_email: string | null
           client_name: string
           company_id: string | null
@@ -308,6 +309,7 @@ export type Database = {
         }
         Insert: {
           access_code?: string | null
+          checked_in_at?: string | null
           client_email?: string | null
           client_name: string
           company_id?: string | null
@@ -327,6 +329,7 @@ export type Database = {
         }
         Update: {
           access_code?: string | null
+          checked_in_at?: string | null
           client_email?: string | null
           client_name?: string
           company_id?: string | null
@@ -353,6 +356,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      room_status: {
+        Row: {
+          id: string
+          is_occupied: boolean
+          room_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          is_occupied?: boolean
+          room_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          is_occupied?: boolean
+          room_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       staff_audits: {
         Row: {
@@ -531,6 +558,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      staff_problems: {
+        Row: {
+          category: string
+          created_at: string
+          description: string
+          id: string
+          photo_urls: string[] | null
+          room_id: string
+          staff_id: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description: string
+          id?: string
+          photo_urls?: string[] | null
+          room_id?: string
+          staff_id: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string
+          id?: string
+          photo_urls?: string[] | null
+          room_id?: string
+          staff_id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       subscription_plans: {
         Row: {
