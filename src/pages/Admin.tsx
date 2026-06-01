@@ -120,7 +120,8 @@ export default function Admin() {
                 Config
               </TabsTrigger>
             </TabsList>
-          </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
 
           {/* Reservations Calendar Tab */}
           <TabsContent value="reservations" className="space-y-6">
