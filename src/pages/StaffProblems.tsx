@@ -27,6 +27,8 @@ const problemCategories = [
 ];
 
 export default function StaffProblems() {
+  const { user } = useAuth();
+  const { uploadBase64Images, isUploading } = useStorage();
   const [category, setCategory] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -36,7 +38,7 @@ export default function StaffProblems() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!category || !title.trim() || !description.trim()) {
       toast({
         title: "Campos obrigatórios",
@@ -46,26 +48,67 @@ export default function StaffProblems() {
       return;
     }
 
+    if (!user?.id) {
+      toast({
+        title: "Erro de autenticação",
+        description: "Faça login novamente.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
-    
-    // Simulate sending problem report
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    setIsSuccess(true);
-    toast({
-      title: "Problema reportado!",
-      description: "A administração será notificada imediatamente.",
-    });
-    
-    setTimeout(() => {
-      setIsSuccess(false);
-      setCategory("");
-      setTitle("");
-      setDescription("");
-      setPhotos([]);
-    }, 3000);
-    
-    setIsSubmitting(false);
+
+    try {
+      // Upload photos to storage (if any)
+      let photoUrls: string[] = [];
+      if (photos.length > 0) {
+        photoUrls = await uploadBase64Images("audit-photos", photos, "problems");
+      }
+
+      const { error } = await supabase.from("staff_problems").insert({
+        category,
+        title: title.trim(),
+        description: description.trim(),
+        staff_id: user.id,
+        room_id: ROOM_ID,
+        status: "open",
+        photo_urls: photoUrls,
+      });
+
+      if (error) {
+        toast({
+          title: "Erro ao reportar",
+          description: error.message,
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      setIsSuccess(true);
+      toast({
+        title: "Problema reportado!",
+        description: "A administração será notificada imediatamente.",
+      });
+
+      setTimeout(() => {
+        setIsSuccess(false);
+        setCategory("");
+        setTitle("");
+        setDescription("");
+        setPhotos([]);
+      }, 3000);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Erro ao enviar relatório";
+      toast({
+        title: "Erro",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
