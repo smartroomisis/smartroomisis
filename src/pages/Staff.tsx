@@ -290,14 +290,25 @@ export default function Staff() {
             <ClipboardCheck className="w-6 h-6 text-primary" />
             Área do Staff
           </h2>
-          <p className="text-muted-foreground text-sm">
-            Auditoria e Higienização da Sala
+          <p class="" className="text-muted-foreground text-sm">
+            Visão operacional e higienização da sala
           </p>
         </div>
 
-        <div className="space-y-5">
-          {/* Service Claim Card - NEW */}
-          <ServiceClaimCard />
+        <Tabs defaultValue="hoje" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsTrigger value="hoje">Hoje</TabsTrigger>
+            <TabsTrigger value="limpeza">Limpeza</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="hoje">
+            <StaffToday />
+          </TabsContent>
+
+          <TabsContent value="limpeza" className="space-y-5">
+            {/* Service Claim Card - NEW */}
+            <ServiceClaimCard />
+          
           
           {/* Staff & Reservation */}
           <GlassCard className="space-y-4">
