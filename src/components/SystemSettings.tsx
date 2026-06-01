@@ -375,5 +375,7 @@ export function SystemSettings() {
       </div>
 
     </GlassCard>
+    <BlockedSlotsManager />
+    </div>
   );
 }
