@@ -20,6 +20,7 @@ import { AdminReservationCalendar } from "@/components/AdminReservationCalendar"
 import { LandingPageEditor } from "@/components/LandingPageEditor";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { 
   Zap, 
