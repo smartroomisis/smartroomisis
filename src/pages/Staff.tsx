@@ -290,7 +290,7 @@ export default function Staff() {
             <ClipboardCheck className="w-6 h-6 text-primary" />
             Área do Staff
           </h2>
-          <p class="" className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground text-sm">
             Visão operacional e higienização da sala
           </p>
         </div>
