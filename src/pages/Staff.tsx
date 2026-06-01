@@ -12,6 +12,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { PhotoUpload } from "@/components/PhotoUpload";
 import { useStorage } from "@/hooks/useStorage";
 import { ServiceClaimCard } from "@/components/ServiceClaimCard";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { StaffToday } from "@/components/StaffToday";
 import { 
   Zap, 
   ClipboardCheck, 
@@ -291,13 +293,24 @@ export default function Staff() {
             Área do Staff
           </h2>
           <p className="text-muted-foreground text-sm">
-            Auditoria e Higienização da Sala
+            Visão operacional e higienização da sala
           </p>
         </div>
 
-        <div className="space-y-5">
-          {/* Service Claim Card - NEW */}
-          <ServiceClaimCard />
+        <Tabs defaultValue="hoje" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsTrigger value="hoje">Hoje</TabsTrigger>
+            <TabsTrigger value="limpeza">Limpeza</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="hoje">
+            <StaffToday />
+          </TabsContent>
+
+          <TabsContent value="limpeza" className="space-y-5">
+            {/* Service Claim Card - NEW */}
+            <ServiceClaimCard />
+          
           
           {/* Staff & Reservation */}
           <GlassCard className="space-y-4">
@@ -510,7 +523,8 @@ export default function Staff() {
               </>
             )}
           </Button>
-        </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
