@@ -73,9 +73,38 @@ export function BookingCalendar() {
   const [showCheckout, setShowCheckout] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(null);
+  const [blockedTimes, setBlockedTimes] = useState<string[]>([]);
 
   const { profile } = useAuth();
   const config = getSystemConfig();
+
+  useEffect(() => {
+    if (!date) {
+      setBlockedTimes([]);
+      return;
+    }
+    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    supabase
+      .from("blocked_slots")
+      .select("start_time, end_time")
+      .eq("date", dateStr)
+      .then(({ data }) => {
+        if (!data) {
+          setBlockedTimes([]);
+          return;
+        }
+        const blocked: string[] = [];
+        data.forEach((b) => {
+          const startHour = parseInt(b.start_time.slice(0, 2), 10);
+          const endHour = parseInt(b.end_time.slice(0, 2), 10);
+          for (let h = startHour; h < endHour; h++) {
+            blocked.push(`${String(h).padStart(2, "0")}:00`);
+          }
+        });
+        setBlockedTimes(blocked);
+        setSelectedSlots((prev) => prev.filter((t) => !blocked.includes(t)));
+      });
+  }, [date]);
 
   const toggleSlot = (time: string) => {
     setSelectedSlots((prev) =>
