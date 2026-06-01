@@ -203,15 +203,19 @@ export function BookingCalendar() {
         <GlassCard>
           <h3 className="text-lg font-semibold mb-4">Horários Disponíveis</h3>
           <div className="grid grid-cols-3 gap-2">
-            {timeSlots.map((slot) => (
+            {timeSlots.map((slot) => {
+              const isBlocked = blockedTimes.includes(slot.time);
+              const available = slot.available && !isBlocked;
+              return (
               <button
                 key={slot.time}
-                onClick={() => slot.available && toggleSlot(slot.time)}
-                disabled={!slot.available}
+                onClick={() => available && toggleSlot(slot.time)}
+                disabled={!available}
+                title={isBlocked ? "Horário bloqueado" : undefined}
                 className={cn(
                   "p-3 rounded-lg text-sm font-medium transition-all duration-200",
-                  !slot.available && "bg-muted text-muted-foreground opacity-50 cursor-not-allowed",
-                  slot.available &&
+                  !available && "bg-muted text-muted-foreground opacity-50 cursor-not-allowed",
+                  available &&
                     !selectedSlots.includes(slot.time) &&
                     "bg-secondary hover:bg-secondary/80 text-secondary-foreground",
                   selectedSlots.includes(slot.time) &&
@@ -220,7 +224,8 @@ export function BookingCalendar() {
               >
                 {slot.time}
               </button>
-            ))}
+              );
+            })}
           </div>
           {config.minimumHours > 1 && (
             <p className="text-xs text-muted-foreground mt-3">
