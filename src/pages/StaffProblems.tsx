@@ -181,7 +181,7 @@ export default function StaffProblems() {
             <Button 
               type="submit" 
               className="w-full h-12"
-              disabled={isSubmitting || isSuccess}
+              disabled={isSubmitting || isSuccess || isUploading}
             >
               {isSubmitting ? (
                 <>
