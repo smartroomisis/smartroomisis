@@ -12,6 +12,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { PhotoUpload } from "@/components/PhotoUpload";
 import { useStorage } from "@/hooks/useStorage";
 import { ServiceClaimCard } from "@/components/ServiceClaimCard";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { StaffToday } from "@/components/StaffToday";
 import { 
   Zap, 
   ClipboardCheck, 
