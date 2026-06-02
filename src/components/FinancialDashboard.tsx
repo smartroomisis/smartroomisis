@@ -30,6 +30,7 @@ const COLORS = [
 export function FinancialDashboard() {
   const [summary, setSummary] = useState<FinancialSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [dasPaidThisYear, setDasPaidThisYear] = useState(0);
 
   useEffect(() => {
     loadSummary();
@@ -39,6 +40,7 @@ export function FinancialDashboard() {
     setIsLoading(true);
     const data = await fetchFinancialSummary();
     setSummary(data);
+    setDasPaidThisYear(await getDASPaidThisYear());
     setIsLoading(false);
   };
 
