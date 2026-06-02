@@ -94,7 +94,7 @@ export function SubscriptionPlansEditor() {
 
   useEffect(() => {
     fetchPlans();
-    setPricing(getPricingConfig());
+    getPricingConfig().then(setPricing);
   }, []);
 
   const fetchPlans = async () => {
