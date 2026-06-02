@@ -48,20 +48,24 @@ const MONTHS = [
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
 ];
 
-function getStoredPayments(): DASPayment[] {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      return JSON.parse(stored);
-    }
-  } catch {
-    console.error("Error loading DAS payments");
+async function getStoredPayments(): Promise<DASPayment[]> {
+  const { data } = await supabase
+    .from("system_config")
+    .select("value")
+    .eq("key", STORAGE_KEY)
+    .single();
+  if (data?.value && Array.isArray(data.value)) {
+    return data.value as unknown as DASPayment[];
   }
   return [];
 }
 
-function savePayments(payments: DASPayment[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(payments));
+async function savePayments(payments: DASPayment[]): Promise<void> {
+  await supabase.from("system_config").upsert({
+    key: STORAGE_KEY,
+    value: JSON.parse(JSON.stringify(payments)),
+    updated_at: new Date().toISOString(),
+  });
 }
 
 // Helper to get payment status based on current date
@@ -158,7 +162,7 @@ export function DASMEIControl() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setPayments(getStoredPayments());
+    getStoredPayments().then(setPayments);
   }, []);
 
   // Check if webhook should be triggered on day 15 or 20
@@ -612,8 +616,8 @@ export function DASMEIControl() {
 }
 
 // Export function for other components to access DAS paid amount
-export function getDASPaidThisYear(): number {
-  const payments = getStoredPayments();
+export async function getDASPaidThisYear(): Promise<number> {
+  const payments = await getStoredPayments();
   const currentYear = new Date().getFullYear();
   return payments
     .filter(p => p.isPaid && p.referenceMonth.includes(currentYear.toString()))

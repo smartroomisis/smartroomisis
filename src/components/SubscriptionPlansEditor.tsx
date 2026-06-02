@@ -50,20 +50,24 @@ const DEFAULT_PRICING: PricingConfig = {
   progressiveDiscount: 10,
 };
 
-function getPricingConfig(): PricingConfig {
-  try {
-    const stored = localStorage.getItem(PRICING_STORAGE_KEY);
-    if (stored) {
-      return { ...DEFAULT_PRICING, ...JSON.parse(stored) };
-    }
-  } catch {
-    console.error("Error loading pricing config");
+async function getPricingConfig(): Promise<PricingConfig> {
+  const { data } = await supabase
+    .from("system_config")
+    .select("value")
+    .eq("key", PRICING_STORAGE_KEY)
+    .single();
+  if (data?.value) {
+    return { ...DEFAULT_PRICING, ...(data.value as Partial<PricingConfig>) };
   }
   return DEFAULT_PRICING;
 }
 
-function savePricingConfig(config: PricingConfig): void {
-  localStorage.setItem(PRICING_STORAGE_KEY, JSON.stringify(config));
+async function savePricingConfig(config: PricingConfig): Promise<void> {
+  await supabase.from("system_config").upsert({
+    key: PRICING_STORAGE_KEY,
+    value: JSON.parse(JSON.stringify(config)),
+    updated_at: new Date().toISOString(),
+  });
 }
 
 const planIcons = {
@@ -90,7 +94,7 @@ export function SubscriptionPlansEditor() {
 
   useEffect(() => {
     fetchPlans();
-    setPricing(getPricingConfig());
+    getPricingConfig().then(setPricing);
   }, []);
 
   const fetchPlans = async () => {
@@ -123,8 +127,8 @@ export function SubscriptionPlansEditor() {
     setPricingChanged(true);
   };
 
-  const handleSavePricing = () => {
-    savePricingConfig(pricing);
+  const handleSavePricing = async () => {
+    await savePricingConfig(pricing);
     setPricingChanged(false);
     toast({
       title: "Preços Base Salvos",
