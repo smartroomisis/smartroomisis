@@ -73,14 +73,30 @@ export function MEILimitDashboard() {
 
   const loadData = async () => {
     setIsLoading(true);
-    setConfig(getMEIConfig());
+    const { data } = await supabase
+      .from("system_config")
+      .select("value")
+      .eq("key", STORAGE_KEY)
+      .single();
+    if (data?.value) {
+      const merged = { ...DEFAULT_CONFIG, ...(data.value as Partial<MEIConfig>) };
+      setConfig(merged);
+      saveMEIConfig(merged);
+    } else {
+      setConfig(getMEIConfig());
+    }
     const summaryData = await fetchFinancialSummary();
     setSummary(summaryData);
     setIsLoading(false);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     saveMEIConfig(config);
+    await supabase.from("system_config").upsert({
+      key: STORAGE_KEY,
+      value: JSON.parse(JSON.stringify(config)),
+      updated_at: new Date().toISOString(),
+    });
     setHasChanges(false);
     toast({
       title: "Configurações Salvas",
