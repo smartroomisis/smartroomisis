@@ -162,7 +162,7 @@ export function DASMEIControl() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setPayments(getStoredPayments());
+    getStoredPayments().then(setPayments);
   }, []);
 
   // Check if webhook should be triggered on day 15 or 20
