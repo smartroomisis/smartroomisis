@@ -67,9 +67,8 @@ export function FinancialDashboard() {
   const staffTransportCost = summary.reservationCount * config.transportAllowance;
   const totalStaffCost = staffServiceCost + staffTransportCost;
   
-  // Get DAS paid this year
-  const dasPaidThisYear = getDASPaidThisYear();
-  
+  // Get DAS paid this year (loaded in state)
+
   // Adjusted net profit considering all costs including DAS taxes
   const adjustedNetProfit = summary.totalRevenue - summary.totalExpenses - summary.coffeeCost - totalStaffCost - dasPaidThisYear;
 
