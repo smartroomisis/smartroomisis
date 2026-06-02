@@ -225,7 +225,7 @@ async function persistSystemConfig(config: SystemConfig): Promise<void> {
   saveSystemConfig(config);
   await supabase.from("system_config").upsert({
     key: STORAGE_KEY,
-    value: config as unknown as Record<string, unknown>,
+    value: JSON.parse(JSON.stringify(config)),
     updated_at: new Date().toISOString(),
   });
 }
