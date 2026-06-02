@@ -616,8 +616,8 @@ export function DASMEIControl() {
 }
 
 // Export function for other components to access DAS paid amount
-export function getDASPaidThisYear(): number {
-  const payments = getStoredPayments();
+export async function getDASPaidThisYear(): Promise<number> {
+  const payments = await getStoredPayments();
   const currentYear = new Date().getFullYear();
   return payments
     .filter(p => p.isPaid && p.referenceMonth.includes(currentYear.toString()))
