@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { fetchFinancialSummary, FinancialSummary } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   AlertTriangle, 
   TrendingUp, 
