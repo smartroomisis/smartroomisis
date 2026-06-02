@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { GlassCard } from "@/components/GlassCard";
 import { Loader2, Calculator } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ReservationCost {
   id: string;
@@ -11,26 +12,57 @@ interface ReservationCost {
   totalCost: number;
 }
 
-// Mock data - would come from Airtable in production
-const mockReservationCosts: ReservationCost[] = [
-  { id: "1", clientName: "João Silva", date: "2024-01-15", fixedCost: 45, coffeeCost: 6, totalCost: 51 },
-  { id: "2", clientName: "Maria Santos", date: "2024-01-14", fixedCost: 45, coffeeCost: 9, totalCost: 54 },
-  { id: "3", clientName: "Carlos Oliveira", date: "2024-01-13", fixedCost: 45, coffeeCost: 3, totalCost: 48 },
-  { id: "4", clientName: "Ana Costa", date: "2024-01-12", fixedCost: 45, coffeeCost: 6, totalCost: 51 },
-  { id: "5", clientName: "Pedro Lima", date: "2024-01-11", fixedCost: 45, coffeeCost: 0, totalCost: 45 },
-];
+const PRICING_STORAGE_KEY = "smart_room_pricing_config";
+const DEFAULT_HOURLY_RATE = 85;
 
 export function ReservationCostList() {
   const [costs, setCosts] = useState<ReservationCost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setCosts(mockReservationCosts);
-      setIsLoading(false);
-    }, 500);
+    loadCosts();
   }, []);
+
+  const loadCosts = async () => {
+    setIsLoading(true);
+
+    // Base hourly rate from system_config
+    let hourlyRate = DEFAULT_HOURLY_RATE;
+    const { data: configData } = await supabase
+      .from("system_config")
+      .select("value")
+      .eq("key", PRICING_STORAGE_KEY)
+      .single();
+    if (configData?.value && typeof configData.value === "object") {
+      const cfg = configData.value as { hourlyRate?: number };
+      if (typeof cfg.hourlyRate === "number") hourlyRate = cfg.hourlyRate;
+    }
+
+    const { data } = await supabase
+      .from("reservations")
+      .select("id, client_name, date, total_price")
+      .eq("status", "confirmed")
+      .order("date", { ascending: false })
+      .limit(10);
+
+    const mapped: ReservationCost[] = (data || []).map((r) => {
+      const totalCost = Number(r.total_price) || 0;
+      const fixedCost = hourlyRate;
+      const coffeeCost = Math.max(0, totalCost - fixedCost);
+      return {
+        id: r.id,
+        clientName: r.client_name,
+        date: r.date,
+        fixedCost,
+        coffeeCost,
+        totalCost,
+      };
+    });
+
+    setCosts(mapped);
+    setIsLoading(false);
+  };
+
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
