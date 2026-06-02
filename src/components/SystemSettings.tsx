@@ -221,12 +221,38 @@ export function saveSystemConfig(config: SystemConfig): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
 }
 
+async function persistSystemConfig(config: SystemConfig): Promise<void> {
+  saveSystemConfig(config);
+  await supabase.from("system_config").upsert({
+    key: STORAGE_KEY,
+    value: config as unknown as Record<string, unknown>,
+    updated_at: new Date().toISOString(),
+  });
+}
+
 export function SystemSettings() {
   const [config, setConfig] = useState<SystemConfig>(DEFAULT_CONFIG);
   const [hasChanges, setHasChanges] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setConfig(getSystemConfig());
+    const loadConfig = async () => {
+      setLoading(true);
+      const { data } = await supabase
+        .from("system_config")
+        .select("value")
+        .eq("key", STORAGE_KEY)
+        .single();
+      if (data?.value) {
+        const merged = { ...DEFAULT_CONFIG, ...(data.value as Partial<SystemConfig>) };
+        setConfig(merged);
+        saveSystemConfig(merged);
+      } else {
+        setConfig(getSystemConfig());
+      }
+      setLoading(false);
+    };
+    loadConfig();
   }, []);
 
   const handleChange = (field: keyof SystemConfig, value: number | string) => {
@@ -234,8 +260,8 @@ export function SystemSettings() {
     setHasChanges(true);
   };
 
-  const handleSave = () => {
-    saveSystemConfig(config);
+  const handleSave = async () => {
+    await persistSystemConfig(config);
     setHasChanges(false);
     toast({
       title: "Configurações Salvas",
@@ -243,15 +269,23 @@ export function SystemSettings() {
     });
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
     setConfig(DEFAULT_CONFIG);
-    saveSystemConfig(DEFAULT_CONFIG);
+    await persistSystemConfig(DEFAULT_CONFIG);
     setHasChanges(false);
     toast({
       title: "Valores Restaurados",
       description: "Configurações restauradas para os valores padrão.",
     });
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
