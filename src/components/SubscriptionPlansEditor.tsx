@@ -127,8 +127,8 @@ export function SubscriptionPlansEditor() {
     setPricingChanged(true);
   };
 
-  const handleSavePricing = () => {
-    savePricingConfig(pricing);
+  const handleSavePricing = async () => {
+    await savePricingConfig(pricing);
     setPricingChanged(false);
     toast({
       title: "Preços Base Salvos",
