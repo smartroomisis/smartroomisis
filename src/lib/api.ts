@@ -224,6 +224,44 @@ export async function createReservation(
   }
 }
 
+// Request a PIX charge for a reservation via the n8n reservation webhook.
+// Returns a real PIX code and the created reservation id.
+export interface PixReservationResponse {
+  success: boolean;
+  pixCode?: string;
+  reservationId?: string;
+  error?: string;
+}
+
+export async function requestPixReservation(
+  payload: Record<string, unknown>
+): Promise<PixReservationResponse> {
+  try {
+    const result = await apiCall<Record<string, unknown>>(N8N_WEBHOOKS.RESERVATION, {
+      ...payload,
+      paymentMethod: "pix",
+      timestamp: new Date().toISOString(),
+    });
+
+    const pixCode =
+      (result.pixCode as string) ??
+      (result.pix_code as string) ??
+      (result.pix as string);
+    const reservationId =
+      (result.reservationId as string) ??
+      (result.reservation_id as string);
+
+    if (!pixCode || !reservationId) {
+      return { success: false, error: "Resposta inválida do servidor de pagamento." };
+    }
+
+    return { success: true, pixCode, reservationId };
+  } catch (err) {
+    console.error("Failed to request PIX reservation:", err);
+    return { success: false, error: ERROR_MESSAGES.CONNECTION };
+  }
+}
+
 // Update room status (for admin panel)
 export async function updateRoomStatus(
   roomId: string,
