@@ -245,42 +245,14 @@ export function SmartCheckout({
   };
 
   const handlePixConfirmed = async () => {
-    if (!profile) return;
-
-    try {
-      // Create reservation via n8n webhook
-      const reservationResult = await createReservation({
-        user_id: profile.id,
-        user_email: profile.email,
-        client_name: profile.full_name || profile.email,
-        room_id: ROOM_ID,
-        date: reservationDetails?.date || new Date().toLocaleDateString("pt-BR"),
-        start_time: reservationDetails?.startTime || "",
-        end_time: reservationDetails?.endTime || "",
-        hours: hoursRequested,
-        payment_mode: "stripe", // PIX uses same mode in database
-        total_price: fullPrice,
-      });
-
-      if (!reservationResult.success) {
-        throw new Error(reservationResult.error || "Erro ao criar reserva");
-      }
-
-      toast({
-        title: "Reserva confirmada!",
-        description: `Pagamento PIX recebido. Código: ${reservationResult.access_code || "N/A"}`,
-      });
-
-      onSuccess("pix");
-      onOpenChange(false);
-    } catch (error) {
-      console.error("Error creating reservation after PIX:", error);
-      toast({
-        title: "Erro",
-        description: error instanceof Error ? error.message : "Erro ao criar reserva.",
-        variant: "destructive",
-      });
-    }
+    // The reservation is created and confirmed via the n8n PIX flow inside
+    // PixPaymentModal, so here we only finalize the checkout UI.
+    toast({
+      title: "Reserva confirmada!",
+      description: "Pagamento PIX recebido com sucesso.",
+    });
+    onSuccess("pix");
+    onOpenChange(false);
   };
 
   return (
@@ -462,6 +434,18 @@ export function SmartCheckout({
         amount={totalPrice > 0 ? totalPrice : fullPrice}
         description={`Reserva Smart Room - ${reservationDetails?.date}`}
         onPaymentConfirmed={handlePixConfirmed}
+        reservationPayload={profile ? {
+          user_id: profile.id,
+          user_email: profile.email,
+          client_name: profile.full_name || profile.email,
+          room_id: ROOM_ID,
+          date: reservationDetails?.date || new Date().toLocaleDateString("pt-BR"),
+          start_time: reservationDetails?.startTime || "",
+          end_time: reservationDetails?.endTime || "",
+          hours: hoursRequested,
+          payment_mode: "pix",
+          total_price: totalPrice > 0 ? totalPrice : fullPrice,
+        } : undefined}
       />
     </>
   );

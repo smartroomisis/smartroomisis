@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -8,12 +8,13 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { requestPixReservation } from "@/lib/api";
 import { 
   QrCode, 
   Copy, 
   CheckCircle, 
   Loader2,
-  Timer,
   RefreshCw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,9 @@ interface PixPaymentModalProps {
   amount: number;
   description: string;
   onPaymentConfirmed?: () => void;
+  // When provided, the modal requests a real PIX charge from n8n and polls
+  // the reservations table until the payment is confirmed.
+  reservationPayload?: Record<string, unknown>;
 }
 
 export function PixPaymentModal({
@@ -32,14 +36,63 @@ export function PixPaymentModal({
   amount,
   description,
   onPaymentConfirmed,
+  reservationPayload,
 }: PixPaymentModalProps) {
   const [copied, setCopied] = useState(false);
-  const [status, setStatus] = useState<"pending" | "waiting" | "confirmed">("pending");
+  const [status, setStatus] = useState<"loading" | "pending" | "waiting" | "confirmed" | "error">("pending");
   const [countdown, setCountdown] = useState(300); // 5 minutes
+  const [pixCode, setPixCode] = useState("");
+  const [reservationId, setReservationId] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Mock PIX code - in production this would come from backend
-  const pixCode = `00020126580014BR.GOV.BCB.PIX0136smartroom-${Date.now()}5204000053039865802BR5925SMART ROOM OFFICE SJC6009SAO PAULO62070503***6304${Math.random().toString(36).substring(7).toUpperCase()}`;
+  const useBackend = !!reservationPayload;
 
+  // Request a real PIX code from n8n when the modal opens
+  useEffect(() => {
+    if (!open || !useBackend) return;
+
+    let cancelled = false;
+    setStatus("loading");
+    setPixCode("");
+    setReservationId(null);
+    setCountdown(300);
+
+    (async () => {
+      const result = await requestPixReservation(reservationPayload!);
+      if (cancelled) return;
+
+      if (!result.success || !result.pixCode || !result.reservationId) {
+        setStatus("error");
+        toast({
+          title: "Erro ao gerar PIX",
+          description: result.error || "Tente novamente.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setPixCode(result.pixCode);
+      setReservationId(result.reservationId);
+      setStatus("waiting");
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, useBackend]);
+
+  // Fallback static code for non-reservation usage (e.g. coffee)
+  useEffect(() => {
+    if (open && !useBackend) {
+      setStatus("pending");
+      setCountdown(300);
+      setPixCode(
+        `00020126580014BR.GOV.BCB.PIX0136smartroom-${Date.now()}5204000053039865802BR5925SMART ROOM OFFICE SJC6009SAO PAULO62070503***6304`
+      );
+    }
+  }, [open, useBackend]);
+
+  // Countdown timer
   useEffect(() => {
     if (open && status === "waiting") {
       const timer = setInterval(() => {
@@ -56,11 +109,43 @@ export function PixPaymentModal({
     }
   }, [open, status]);
 
+  // Poll the reservations table for payment confirmation
+  useEffect(() => {
+    if (!open || !useBackend || !reservationId || status !== "waiting") return;
+
+    pollRef.current = setInterval(async () => {
+      const { data, error } = await supabase
+        .from("reservations")
+        .select("status")
+        .eq("id", reservationId)
+        .single();
+
+      if (error) return;
+
+      if (data?.status === "confirmed") {
+        if (pollRef.current) clearInterval(pollRef.current);
+        setStatus("confirmed");
+        toast({
+          title: "Pagamento Confirmado! ✓",
+          description: "Sua reserva foi confirmada com sucesso.",
+        });
+        setTimeout(() => {
+          onPaymentConfirmed?.();
+          onOpenChange(false);
+        }, 1500);
+      }
+    }, 3000);
+
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [open, useBackend, reservationId, status]);
+
   const handleCopyCode = async () => {
     try {
       await navigator.clipboard.writeText(pixCode);
       setCopied(true);
-      setStatus("waiting");
+      if (!useBackend) setStatus("waiting");
       toast({
         title: "Código PIX Copiado!",
         description: "Cole no seu aplicativo de banco.",
@@ -123,6 +208,19 @@ export function PixPaymentModal({
           </div>
 
           {/* Status Messages */}
+          {status === "loading" && (
+            <div className="flex items-center justify-center gap-2 p-3 bg-secondary/50 rounded-lg">
+              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Gerando código PIX...</span>
+            </div>
+          )}
+
+          {status === "error" && (
+            <p className="text-center text-sm text-destructive">
+              Não foi possível gerar o código PIX. Feche e tente novamente.
+            </p>
+          )}
+
           {status === "pending" && (
             <p className="text-center text-sm text-muted-foreground">
               Escaneie o QR Code ou copie o código abaixo
@@ -154,7 +252,7 @@ export function PixPaymentModal({
           <div className="space-y-2">
             <div className="p-3 bg-secondary/50 rounded-lg">
               <p className="text-xs font-mono text-muted-foreground break-all line-clamp-2">
-                {pixCode.substring(0, 60)}...
+                {pixCode ? `${pixCode.substring(0, 60)}...` : "—"}
               </p>
             </div>
 
@@ -164,7 +262,7 @@ export function PixPaymentModal({
                 copied && "bg-success hover:bg-success"
               )}
               onClick={handleCopyCode}
-              disabled={status === "confirmed"}
+              disabled={status === "confirmed" || status === "loading" || !pixCode}
             >
               {copied ? (
                 <>
@@ -180,8 +278,8 @@ export function PixPaymentModal({
             </Button>
           </div>
 
-          {/* Simulate Payment (Dev only) */}
-          {status === "waiting" && (
+          {/* Simulate Payment (Dev only) - only without backend confirmation */}
+          {!useBackend && status === "waiting" && (
             <Button
               variant="outline"
               className="w-full gap-2"

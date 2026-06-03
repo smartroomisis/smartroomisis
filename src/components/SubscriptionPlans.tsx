@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { GlassCard } from "@/components/GlassCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Check, Crown, Zap, Briefcase, Building2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 interface Plan {
@@ -15,6 +17,7 @@ interface Plan {
   monthly_price: number;
   included_hours: number;
   min_booking_hours: number;
+  stripe_price_id: string | null;
 }
 
 const planIcons = {
@@ -32,9 +35,11 @@ const planColors = {
 };
 
 export function SubscriptionPlans() {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
+  const navigate = useNavigate();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPlans();
@@ -58,8 +63,52 @@ export function SubscriptionPlans() {
   };
 
   const handleSelectPlan = async (plan: Plan) => {
-    // TODO: Integrate with Stripe for paid plans
-    console.log("Selected plan:", plan);
+    // "Avulso" (basic): keep the pay-per-use booking flow, no subscription checkout
+    if (plan.plan_type === "basic") {
+      navigate("/booking");
+      return;
+    }
+
+    if (!user) {
+      toast({
+        title: "Faça login",
+        description: "Você precisa estar autenticado para assinar um plano.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!plan.stripe_price_id) {
+      toast({
+        title: "Plano indisponível",
+        description: "Este plano ainda não está configurado para pagamento.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setProcessingId(plan.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-checkout-session", {
+        body: { priceId: plan.stripe_price_id, userId: user.id },
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("Não foi possível criar a sessão de pagamento.");
+      }
+    } catch (error) {
+      console.error("Error creating checkout session:", error);
+      toast({
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Erro ao iniciar pagamento.",
+        variant: "destructive",
+      });
+      setProcessingId(null);
+    }
   };
 
   if (loading) {
@@ -166,10 +215,10 @@ export function SubscriptionPlans() {
               <Button
                 variant={isCurrentPlan ? "secondary" : plan.plan_type === "pro" ? "default" : "outline"}
                 className="w-full"
-                disabled={isCurrentPlan}
+                disabled={isCurrentPlan || processingId === plan.id}
                 onClick={() => handleSelectPlan(plan)}
               >
-                {isCurrentPlan ? "Plano Atual" : "Selecionar"}
+                {isCurrentPlan ? "Plano Atual" : processingId === plan.id ? "Processando..." : "Selecionar"}
               </Button>
             </GlassCard>
           );
