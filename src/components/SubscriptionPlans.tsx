@@ -63,8 +63,52 @@ export function SubscriptionPlans() {
   };
 
   const handleSelectPlan = async (plan: Plan) => {
-    // TODO: Integrate with Stripe for paid plans
-    console.log("Selected plan:", plan);
+    // "Avulso" (basic): keep the pay-per-use booking flow, no subscription checkout
+    if (plan.plan_type === "basic") {
+      navigate("/booking");
+      return;
+    }
+
+    if (!user) {
+      toast({
+        title: "Faça login",
+        description: "Você precisa estar autenticado para assinar um plano.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!plan.stripe_price_id) {
+      toast({
+        title: "Plano indisponível",
+        description: "Este plano ainda não está configurado para pagamento.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setProcessingId(plan.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-checkout-session", {
+        body: { priceId: plan.stripe_price_id, userId: user.id },
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("Não foi possível criar a sessão de pagamento.");
+      }
+    } catch (error) {
+      console.error("Error creating checkout session:", error);
+      toast({
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Erro ao iniciar pagamento.",
+        variant: "destructive",
+      });
+      setProcessingId(null);
+    }
   };
 
   if (loading) {
