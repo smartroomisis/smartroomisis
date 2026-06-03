@@ -17,6 +17,7 @@ interface Plan {
   monthly_price: number;
   included_hours: number;
   min_booking_hours: number;
+  stripe_price_id: string | null;
 }
 
 const planIcons = {
