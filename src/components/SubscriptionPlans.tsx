@@ -215,10 +215,10 @@ export function SubscriptionPlans() {
               <Button
                 variant={isCurrentPlan ? "secondary" : plan.plan_type === "pro" ? "default" : "outline"}
                 className="w-full"
-                disabled={isCurrentPlan}
+                disabled={isCurrentPlan || processingId === plan.id}
                 onClick={() => handleSelectPlan(plan)}
               >
-                {isCurrentPlan ? "Plano Atual" : "Selecionar"}
+                {isCurrentPlan ? "Plano Atual" : processingId === plan.id ? "Processando..." : "Selecionar"}
               </Button>
             </GlassCard>
           );
