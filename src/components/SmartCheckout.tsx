@@ -434,6 +434,18 @@ export function SmartCheckout({
         amount={totalPrice > 0 ? totalPrice : fullPrice}
         description={`Reserva Smart Room - ${reservationDetails?.date}`}
         onPaymentConfirmed={handlePixConfirmed}
+        reservationPayload={profile ? {
+          user_id: profile.id,
+          user_email: profile.email,
+          client_name: profile.full_name || profile.email,
+          room_id: ROOM_ID,
+          date: reservationDetails?.date || new Date().toLocaleDateString("pt-BR"),
+          start_time: reservationDetails?.startTime || "",
+          end_time: reservationDetails?.endTime || "",
+          hours: hoursRequested,
+          payment_mode: "pix",
+          total_price: totalPrice > 0 ? totalPrice : fullPrice,
+        } : undefined}
       />
     </>
   );
