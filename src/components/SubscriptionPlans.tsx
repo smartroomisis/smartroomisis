@@ -35,9 +35,11 @@ const planColors = {
 };
 
 export function SubscriptionPlans() {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
+  const navigate = useNavigate();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPlans();
