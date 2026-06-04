@@ -72,7 +72,7 @@ export default function Profile() {
     try {
       const { data, error } = await supabase
         .from("reservations")
-        .select("id, date, start_time, end_time, hours, status")
+        .select("id, date, start_time, end_time, hours, status, refund_reason")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(10);
@@ -86,6 +86,36 @@ export default function Profile() {
       setLoadingReservations(false);
     }
   };
+
+  const handleConfirmCancel = async () => {
+    if (!cancelTarget) return;
+    setCancelling(true);
+    try {
+      const result = await cancelReservation(cancelTarget.id);
+      if (result.success) {
+        const refund = result.refundAmount ?? 0;
+        toast({
+          title: "Reserva cancelada",
+          description: `Valor do reembolso: ${refund.toLocaleString("pt-BR", {
+            style: "currency",
+            currency: "BRL",
+          })}`,
+        });
+        if (user?.id) await fetchReservations(user.id);
+      } else {
+        toast({
+          title: "Erro ao cancelar",
+          description: result.error ?? "Tente novamente.",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setCancelling(false);
+      setCancelTarget(null);
+    }
+  };
+
+
 
   const getReservationStatusBadge = (status: string) => {
     switch (status) {
