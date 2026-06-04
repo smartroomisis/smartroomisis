@@ -52,6 +52,8 @@ export default function Profile() {
   const [loadingCompany, setLoadingCompany] = useState(false);
   const [reservations, setReservations] = useState<UserReservation[]>([]);
   const [loadingReservations, setLoadingReservations] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState<UserReservation | null>(null);
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     if (profile?.enterprise_company_id) {
