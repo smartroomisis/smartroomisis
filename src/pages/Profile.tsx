@@ -3,6 +3,16 @@ import { WalletBalance } from "@/components/WalletBalance";
 import { GlassCard } from "@/components/GlassCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { 
   User, 
   Building2, 
@@ -13,10 +23,13 @@ import {
   Loader2,
   Crown,
   CalendarDays,
-  Clock
+  Clock,
+  X
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { cancelReservation } from "@/lib/api";
+import { toast } from "@/hooks/use-toast";
 
 interface EnterpriseCompany {
   name: string;
@@ -30,6 +43,7 @@ interface UserReservation {
   end_time: string;
   hours: number;
   status: string;
+  refund_reason?: string | null;
 }
 
 export default function Profile() {
