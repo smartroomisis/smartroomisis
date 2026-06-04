@@ -281,7 +281,25 @@ export default function Profile() {
                         <span className="ml-1">· {reservation.hours}h</span>
                       </p>
                     </div>
-                    {getReservationStatusBadge(reservation.status)}
+                    <div className="flex flex-col items-end gap-1">
+                      {getReservationStatusBadge(reservation.status)}
+                      {reservation.status === "confirmed" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                          onClick={() => setCancelTarget(reservation)}
+                        >
+                          <X className="w-3 h-3 mr-1" />
+                          Cancelar
+                        </Button>
+                      )}
+                      {reservation.status === "cancelled" && reservation.refund_reason && (
+                        <p className="text-xs text-muted-foreground text-right max-w-[160px]">
+                          {reservation.refund_reason}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
