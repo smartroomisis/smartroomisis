@@ -3,6 +3,16 @@ import { WalletBalance } from "@/components/WalletBalance";
 import { GlassCard } from "@/components/GlassCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { 
   User, 
   Building2, 
@@ -13,10 +23,13 @@ import {
   Loader2,
   Crown,
   CalendarDays,
-  Clock
+  Clock,
+  X
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { cancelReservation } from "@/lib/api";
+import { toast } from "@/hooks/use-toast";
 
 interface EnterpriseCompany {
   name: string;
@@ -30,6 +43,7 @@ interface UserReservation {
   end_time: string;
   hours: number;
   status: string;
+  refund_reason?: string | null;
 }
 
 export default function Profile() {
@@ -38,6 +52,8 @@ export default function Profile() {
   const [loadingCompany, setLoadingCompany] = useState(false);
   const [reservations, setReservations] = useState<UserReservation[]>([]);
   const [loadingReservations, setLoadingReservations] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState<UserReservation | null>(null);
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     if (profile?.enterprise_company_id) {
@@ -56,7 +72,7 @@ export default function Profile() {
     try {
       const { data, error } = await supabase
         .from("reservations")
-        .select("id, date, start_time, end_time, hours, status")
+        .select("id, date, start_time, end_time, hours, status, refund_reason")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(10);
@@ -70,6 +86,36 @@ export default function Profile() {
       setLoadingReservations(false);
     }
   };
+
+  const handleConfirmCancel = async () => {
+    if (!cancelTarget) return;
+    setCancelling(true);
+    try {
+      const result = await cancelReservation(cancelTarget.id);
+      if (result.success) {
+        const refund = result.refundAmount ?? 0;
+        toast({
+          title: "Reserva cancelada",
+          description: `Valor do reembolso: ${refund.toLocaleString("pt-BR", {
+            style: "currency",
+            currency: "BRL",
+          })}`,
+        });
+        if (user?.id) await fetchReservations(user.id);
+      } else {
+        toast({
+          title: "Erro ao cancelar",
+          description: result.error ?? "Tente novamente.",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setCancelling(false);
+      setCancelTarget(null);
+    }
+  };
+
+
 
   const getReservationStatusBadge = (status: string) => {
     switch (status) {
@@ -235,7 +281,25 @@ export default function Profile() {
                         <span className="ml-1">· {reservation.hours}h</span>
                       </p>
                     </div>
-                    {getReservationStatusBadge(reservation.status)}
+                    <div className="flex flex-col items-end gap-1">
+                      {getReservationStatusBadge(reservation.status)}
+                      {reservation.status === "confirmed" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                          onClick={() => setCancelTarget(reservation)}
+                        >
+                          <X className="w-3 h-3 mr-1" />
+                          Cancelar
+                        </Button>
+                      )}
+                      {reservation.status === "cancelled" && reservation.refund_reason && (
+                        <p className="text-xs text-muted-foreground text-right max-w-[160px]">
+                          {reservation.refund_reason}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -255,6 +319,34 @@ export default function Profile() {
           </Button>
         </div>
       </div>
+
+      <AlertDialog open={!!cancelTarget} onOpenChange={(open) => !open && setCancelTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancelar reserva</AlertDialogTitle>
+            <AlertDialogDescription>
+              Política de reembolso: Cancelamento com mais de 24h: reembolso total.
+              Entre 2h e 24h: 50%. Menos de 2h: sem reembolso.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelling}>Voltar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleConfirmCancel();
+              }}
+              disabled={cancelling}
+            >
+              {cancelling ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                "Confirmar cancelamento"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

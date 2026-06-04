@@ -31,7 +31,7 @@ export default function StaffPayments() {
         .from("staff_payments")
         .select("id, amount, status, description, payment_date, created_at")
         .eq("staff_id", user.id)
-        .order("created_at", { ascending: false });
+        .order("payment_date", { ascending: false, nullsFirst: false });
 
       if (error) {
         console.error("Error fetching staff payments:", error);

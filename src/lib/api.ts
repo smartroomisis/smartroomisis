@@ -19,7 +19,50 @@ export const N8N_WEBHOOKS = {
   CONTROL_HVAC: `${N8N_WEBHOOK_URL}/control-hvac`,
   COFFEE: `${N8N_WEBHOOK_URL}/preparar-cafe`,
   STAFF_AUDIT: `${N8N_WEBHOOK_URL}/staff-audit`,
+  CANCEL_RESERVATION: `${N8N_WEBHOOK_URL}/cancelar-reserva`,
 };
+
+// Cancel reservation response
+export interface CancelReservationResponse {
+  success: boolean;
+  refundAmount?: number;
+  refundReason?: string;
+  error?: string;
+}
+
+// Cancel a reservation via the n8n webhook.
+export async function cancelReservation(
+  reservationId: string
+): Promise<CancelReservationResponse> {
+  try {
+    const response = await fetch(N8N_WEBHOOKS.CANCEL_RESERVATION, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-token-secreto": import.meta.env.VITE_N8N_TOKEN_SECRETO ?? "",
+      },
+      body: JSON.stringify({
+        reservationId,
+        timestamp: new Date().toISOString(),
+      }),
+    });
+
+    if (!response.ok) {
+      return { success: false, error: ERROR_MESSAGES.CONNECTION };
+    }
+
+    const result = await response.json().catch(() => ({}));
+    const refundAmount =
+      (result.refundAmount as number) ?? (result.refund_amount as number) ?? 0;
+    const refundReason =
+      (result.refundReason as string) ?? (result.refund_reason as string);
+
+    return { success: true, refundAmount, refundReason };
+  } catch (err) {
+    console.error("Failed to cancel reservation:", err);
+    return { success: false, error: ERROR_MESSAGES.CONNECTION };
+  }
+}
 
 // Pricing Configuration
 export const CAPSULE_COST = 2.50;
