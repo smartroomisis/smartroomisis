@@ -330,6 +330,7 @@ export type Database = {
           id: string
           notes: string | null
           payment_mode: string
+          refund_reason: string | null
           room_id: string
           start_time: string
           status: string
@@ -350,6 +351,7 @@ export type Database = {
           id?: string
           notes?: string | null
           payment_mode?: string
+          refund_reason?: string | null
           room_id?: string
           start_time: string
           status?: string
@@ -370,6 +372,7 @@ export type Database = {
           id?: string
           notes?: string | null
           payment_mode?: string
+          refund_reason?: string | null
           room_id?: string
           start_time?: string
           status?: string
