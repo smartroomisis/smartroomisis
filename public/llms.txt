@@ -1,0 +1,9 @@
+# Smart Room Office
+
+> Sala de reuniões inteligente 100% autônoma: reserve online, acesse com código digital e controle iluminação, ar e acesso pelo celular. Sistema de reserva de salas para escritórios híbridos.
+
+Smart Room Office é uma plataforma de reserva e automação de salas de reunião. Usuários reservam horários, pagam via PIX ou cartão, recebem acesso digital e controlam os equipamentos da sala diretamente do app.
+
+## Pages
+
+- [Início](/): Visão geral do serviço, planos e como funciona a reserva da sala inteligente.
