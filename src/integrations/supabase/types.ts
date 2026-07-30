@@ -334,6 +334,7 @@ export type Database = {
           room_id: string
           start_time: string
           status: string
+          stripe_payment_id: string | null
           total_price: number
           updated_at: string
           user_id: string | null
@@ -355,6 +356,7 @@ export type Database = {
           room_id?: string
           start_time: string
           status?: string
+          stripe_payment_id?: string | null
           total_price?: number
           updated_at?: string
           user_id?: string | null
@@ -376,6 +378,7 @@ export type Database = {
           room_id?: string
           start_time?: string
           status?: string
+          stripe_payment_id?: string | null
           total_price?: number
           updated_at?: string
           user_id?: string | null
