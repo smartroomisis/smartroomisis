@@ -2,7 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 // N8N Webhook Configuration
 export const N8N_WEBHOOK_URL =
-  import.meta.env.VITE_N8N_WEBHOOK_URL ?? "https://smartroom-isis.app.n8n.cloud/webhook";
+  "https://tinker-sinless-enhance.ngrok-free.dev/webhook";
 // NOTE: The n8n bearer token is stored server-side as a Supabase secret (N8N_AUTH_TOKEN)
 // and is only used by the `room-control` edge function. It is never exposed to the client.
 
