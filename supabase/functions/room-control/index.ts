@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const N8N_WEBHOOK_BASE = "https://smartroom-isis.app.n8n.cloud/webhook";
+const N8N_WEBHOOK_BASE = Deno.env.get("N8N_WEBHOOK_URL");
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -40,6 +40,14 @@ Deno.serve(async (req) => {
     const N8N_AUTH_TOKEN = Deno.env.get("N8N_AUTH_TOKEN");
     if (!N8N_AUTH_TOKEN) {
       console.error("[room-control] Missing N8N_AUTH_TOKEN");
+      return new Response(JSON.stringify({ success: false, error: "Service configuration error" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!N8N_WEBHOOK_BASE) {
+      console.error("[room-control] Missing N8N_WEBHOOK_URL");
       return new Response(JSON.stringify({ success: false, error: "Service configuration error" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
