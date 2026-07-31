@@ -235,6 +235,7 @@ export interface CreateReservationPayload {
   user_id: string;
   user_email: string;
   client_name: string;
+  phone: string;
   room_id: string;
   date: string;
   start_time: string;
