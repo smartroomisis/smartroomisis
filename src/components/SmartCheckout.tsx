@@ -23,6 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { createReservation, ROOM_ID } from "@/lib/api";
 import { PixPaymentModal } from "@/components/PixPaymentModal";
+import { useNavigate } from "react-router-dom";
 
 interface SmartCheckoutProps {
   open: boolean;
@@ -50,6 +51,7 @@ export function SmartCheckout({
   const [paymentMode, setPaymentMode] = useState<"credit" | "stripe" | "invoice" | "pix" | null>(null);
   const [showPixModal, setShowPixModal] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const userCredits = profile?.credit_hours || 0;
   const hasEnoughCredits = userCredits >= hoursRequested;
@@ -58,8 +60,25 @@ export function SmartCheckout({
   const totalPrice = hoursToCharge * pricePerHour;
   const fullPrice = hoursRequested * pricePerHour;
 
+  const missingPhone = !profile?.phone || profile.phone.replace(/\D/g, "").length < 10;
+
+  const requirePhone = () => {
+    if (missingPhone) {
+      toast({
+        title: "Telefone obrigatório",
+        description: "Cadastre seu celular no perfil para concluir a reserva.",
+        variant: "destructive",
+      });
+      onOpenChange(false);
+      navigate("/profile");
+      return false;
+    }
+    return true;
+  };
+
   const handlePayWithCredits = async () => {
     if (!profile) return;
+    if (!requirePhone()) return;
     
     setLoading(true);
     setPaymentMode("credit");
@@ -70,6 +89,7 @@ export function SmartCheckout({
         user_id: profile.id,
         user_email: profile.email,
         client_name: profile.full_name || profile.email,
+        phone: profile.phone || "",
         room_id: ROOM_ID,
         date: reservationDetails?.date || new Date().toLocaleDateString("pt-BR"),
         start_time: reservationDetails?.startTime || "",
@@ -127,6 +147,7 @@ export function SmartCheckout({
 
   const handleEnterpriseBooking = async () => {
     if (!profile) return;
+    if (!requirePhone()) return;
     
     setLoading(true);
     setPaymentMode("invoice");
@@ -137,6 +158,7 @@ export function SmartCheckout({
         user_id: profile.id,
         user_email: profile.email,
         client_name: profile.full_name || profile.email,
+        phone: profile.phone || "",
         room_id: ROOM_ID,
         date: reservationDetails?.date || new Date().toLocaleDateString("pt-BR"),
         start_time: reservationDetails?.startTime || "",
@@ -184,6 +206,7 @@ export function SmartCheckout({
 
   const handleStripePayment = async () => {
     if (!profile) return;
+    if (!requirePhone()) return;
     
     setLoading(true);
     setPaymentMode("stripe");
@@ -194,6 +217,7 @@ export function SmartCheckout({
         user_id: profile.id,
         user_email: profile.email,
         client_name: profile.full_name || profile.email,
+        phone: profile.phone || "",
         room_id: ROOM_ID,
         date: reservationDetails?.date || new Date().toLocaleDateString("pt-BR"),
         start_time: reservationDetails?.startTime || "",
@@ -240,6 +264,7 @@ export function SmartCheckout({
   };
 
   const handlePixPayment = () => {
+    if (!requirePhone()) return;
     setPaymentMode("pix");
     setShowPixModal(true);
   };
@@ -438,6 +463,7 @@ export function SmartCheckout({
           user_id: profile.id,
           user_email: profile.email,
           client_name: profile.full_name || profile.email,
+          phone: profile.phone || "",
           room_id: ROOM_ID,
           date: reservationDetails?.date || new Date().toLocaleDateString("pt-BR"),
           start_time: reservationDetails?.startTime || "",

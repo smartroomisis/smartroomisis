@@ -3,6 +3,8 @@ import { WalletBalance } from "@/components/WalletBalance";
 import { GlassCard } from "@/components/GlassCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,14 +48,54 @@ interface UserReservation {
   refund_reason?: string | null;
 }
 
+function formatPhone(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  if (digits.length <= 2) return digits.length ? `(${digits}` : "";
+  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  if (digits.length <= 10)
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+}
+
 export default function Profile() {
-  const { user, profile, isEnterprise, signOut, loading } = useAuth();
+  const { user, profile, isEnterprise, signOut, loading, refetchProfile } = useAuth();
   const [company, setCompany] = useState<EnterpriseCompany | null>(null);
   const [loadingCompany, setLoadingCompany] = useState(false);
   const [reservations, setReservations] = useState<UserReservation[]>([]);
   const [loadingReservations, setLoadingReservations] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<UserReservation | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [phoneInput, setPhoneInput] = useState("");
+  const [savingPhone, setSavingPhone] = useState(false);
+
+  useEffect(() => {
+    setPhoneInput(formatPhone(profile?.phone ?? ""));
+  }, [profile?.phone]);
+
+  const phoneDigits = phoneInput.replace(/\D/g, "");
+  const isPhoneValid = phoneDigits.length === 10 || phoneDigits.length === 11;
+
+  const handleSavePhone = async () => {
+    if (!user?.id || !isPhoneValid) return;
+    setSavingPhone(true);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ phone: formatPhone(phoneDigits) })
+        .eq("id", user.id);
+      if (error) throw error;
+      await refetchProfile?.();
+      toast({ title: "Telefone salvo", description: "Seus dados foram atualizados." });
+    } catch (err) {
+      toast({
+        title: "Erro ao salvar",
+        description: "Não foi possível salvar seu telefone.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingPhone(false);
+    }
+  };
 
   useEffect(() => {
     if (profile?.enterprise_company_id) {
@@ -230,15 +272,38 @@ export default function Profile() {
                 </div>
               )}
 
-              {profile?.phone && (
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30">
-                  <Phone className="w-5 h-5 text-muted-foreground" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Telefone</p>
-                    <p className="font-medium">{profile.phone}</p>
-                  </div>
+              <div className="p-3 rounded-lg bg-secondary/30 space-y-2">
+                <Label htmlFor="phone" className="text-xs text-muted-foreground flex items-center gap-2">
+                  <Phone className="w-4 h-4" />
+                  Telefone (celular com DDD) *
+                </Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="phone"
+                    inputMode="numeric"
+                    placeholder="(12) 98765-4321"
+                    value={phoneInput}
+                    onChange={(e) => setPhoneInput(formatPhone(e.target.value))}
+                    maxLength={16}
+                  />
+                  <Button
+                    onClick={handleSavePhone}
+                    disabled={!isPhoneValid || savingPhone || phoneInput === formatPhone(profile?.phone ?? "")}
+                  >
+                    {savingPhone ? <Loader2 className="w-4 h-4 animate-spin" /> : "Salvar"}
+                  </Button>
                 </div>
-              )}
+                {!isPhoneValid && phoneInput.length > 0 && (
+                  <p className="text-xs text-destructive">
+                    Informe um celular válido com DDD (10 ou 11 dígitos).
+                  </p>
+                )}
+                {!profile?.phone && (
+                  <p className="text-xs text-warning">
+                    Telefone obrigatório para confirmar reservas e receber avisos no WhatsApp.
+                  </p>
+                )}
+              </div>
 
               <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30">
                 <CreditCard className="w-5 h-5 text-muted-foreground" />
